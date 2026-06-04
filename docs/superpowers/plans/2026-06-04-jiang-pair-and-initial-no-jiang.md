@@ -96,6 +96,6 @@ Run:
 
 Confirm the page loads, advice text appears, and console has no errors.
 
-- [ ] **Step 2: Commit and push**
+- [x] **Step 2: Commit and push**
 
 Commit with message `Add jiang pair rule context` and push to `origin/main`.
