@@ -1,3 +1,5 @@
+import { tileGlyph, tileLabel } from '../core/tiles.js';
+
 const app = document.querySelector('#app');
 
 const PLAYER_NAMES = ['玩家', '上家', '对家', '下家'];
@@ -5,11 +7,6 @@ const SEAT_CLASS_BY_PLAYER = {
   1: 'left',
   2: 'top',
   3: 'right',
-};
-const SUIT_LABELS = {
-  wan: '万',
-  tiao: '条',
-  tong: '筒',
 };
 
 function escapeHtml(value) {
@@ -21,20 +18,13 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-function tileLabel(tile) {
-  if (!tile) {
-    return '--';
-  }
-
-  return `${tile.rank}${SUIT_LABELS[tile.suit] ?? tile.suit}`;
-}
-
 function tileButton(tile, index) {
+  const glyph = tileGlyph(tile);
   const label = escapeHtml(tileLabel(tile));
 
   return `
     <button class="tile" type="button" data-discard-index="${index}" aria-label="打出${label}">
-      ${label}
+      ${glyph}
     </button>
   `;
 }
@@ -52,7 +42,7 @@ function miniTiles(tiles) {
   }
 
   return tiles.map((tile) => (
-    `<span class="mini-tile">${escapeHtml(tileLabel(tile))}</span>`
+    `<span class="mini-tile" aria-label="${escapeHtml(tileLabel(tile))}">${tileGlyph(tile)}</span>`
   )).join('');
 }
 
@@ -90,7 +80,7 @@ function choicesList(recommendation) {
 
   return choices.map((choice, index) => `
     <li>
-      <span>${index + 1}. ${escapeHtml(tileLabel(choice.discard))}</span>
+      <span>${index + 1}. ${tileGlyph(choice.discard)}</span>
       <strong>${escapeHtml(choice.score)}</strong>
     </li>
   `).join('');
@@ -116,7 +106,7 @@ function reviewBlock(reviewSummary) {
 
 export function renderApp({ game, recommendation, reviewSummary }) {
   const best = recommendation?.best ?? null;
-  const bestDiscardLabel = best ? tileLabel(best.discard) : '暂无';
+  const bestDiscardLabel = best ? tileGlyph(best.discard) : '暂无';
   const explanation = best?.explanation ?? '等待可分析的手牌。';
 
   app.innerHTML = `
@@ -141,7 +131,7 @@ export function renderApp({ game, recommendation, reviewSummary }) {
       <h1>盘中提醒</h1>
       <div class="best-discard">
         <span>推荐打</span>
-        <strong>${escapeHtml(bestDiscardLabel)}</strong>
+        <strong>${bestDiscardLabel}</strong>
       </div>
       <p class="advice-explanation">${escapeHtml(explanation)}</p>
       <h2>备选前三</h2>
