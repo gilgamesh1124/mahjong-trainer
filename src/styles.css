@@ -176,10 +176,6 @@ button {
 }
 
 .player-hand {
-  position: absolute;
-  right: 32px;
-  bottom: 28px;
-  left: 32px;
   display: grid;
   grid-template-columns: repeat(14, minmax(38px, 1fr));
   gap: 8px;
@@ -414,6 +410,91 @@ button {
   outline: 2px solid rgba(115, 211, 143, 0.35);
 }
 
+/* 回合高亮 */
+.seat.is-active,
+.player-zone.is-active {
+  outline: 2px solid #ffe27a;
+  outline-offset: 2px;
+}
+
+/* 玩家区域：副露 + 控件 + 手牌 */
+.player-zone {
+  position: absolute;
+  right: 32px;
+  bottom: 28px;
+  left: 32px;
+  display: grid;
+  gap: 8px;
+}
+
+.player-hand.is-disabled {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* 副露 */
+.melds-strip { display: flex; flex-wrap: wrap; gap: 8px; }
+.meld-group { display: inline-flex; gap: 2px; padding: 2px; border-radius: 4px; background: rgba(0, 0, 0, 0.18); }
+.meld-group.is-concealed { opacity: 0.85; }
+.meld-tile { width: 20px; height: 26px; display: inline-grid; place-items: center; background: linear-gradient(180deg, #fffdf6, #ece0c5); border-radius: 3px; }
+.meld-tile .tile-face { width: 100%; height: 100%; display: block; }
+.seat .melds-strip { margin-top: 6px; justify-content: center; }
+
+/* 认领 / 自动作按钮 */
+.claim-bar, .self-action-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+.claim-button, .self-action-button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #73d38f;
+  border-radius: 8px;
+  background: #3eb969;
+  color: #082017;
+  font-weight: 800;
+  cursor: pointer;
+}
+.claim-button:hover, .self-action-button:hover { background: #56d17f; }
+.claim-pass { border-color: #888; background: #2a322f; color: #dce8e1; }
+
+/* 动作浮标 */
+.action-flash {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  padding: 6px 22px;
+  border-radius: 12px;
+  background: rgba(255, 226, 122, 0.92);
+  color: #1b2422;
+  font-size: 40px;
+  font-weight: 900;
+  pointer-events: none;
+  animation: action-flash-pop 0.9s ease forwards;
+}
+@keyframes action-flash-pop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  25% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -70%) scale(1); }
+}
+
+/* 结局横幅 */
+.result-banner {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+.result-card {
+  display: grid; gap: 12px; justify-items: center;
+  padding: 28px 36px;
+  border: 1px solid #ffe27a; border-radius: 12px;
+  background: #1b2422; color: #f4f7f1;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.result-card h2 { margin: 0; color: #ffe27a; }
+.result-face { width: 56px; height: 74px; padding: 5px; border-radius: 8px; background: linear-gradient(180deg, #fffdf6, #ece0c5); }
+.result-face .tile-face { width: 100%; height: 100%; display: block; }
+
 @media (max-width: 1040px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -449,6 +530,7 @@ button {
   .left,
   .right,
   .center-area,
+  .player-zone,
   .player-hand {
     position: static;
     transform: none;
