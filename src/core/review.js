@@ -38,6 +38,7 @@ export function summarizeReview(records) {
       if (r.followedBest) return false;
       const shantenWorse = r.chosenShanten != null && r.bestShanten != null
         && r.chosenShanten > r.bestShanten;
+      // Flag when ukeire fell below 60% of optimal — a meaningful loss of drawing outs
       const ukeireDropped = r.chosenUkeire != null && r.bestUkeire != null
         && r.bestUkeire > 0 && r.chosenUkeire < r.bestUkeire * 0.6;
       return shantenWorse || ukeireDropped;
