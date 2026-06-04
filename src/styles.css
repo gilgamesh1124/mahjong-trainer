@@ -116,6 +116,14 @@ button {
   font-size: 24px;
 }
 
+.round-status {
+  min-height: 24px;
+  color: #ffe27a;
+  font-size: 15px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .discard-grid {
   display: grid;
   gap: 10px;
@@ -161,6 +169,34 @@ button {
   font-weight: 700;
 }
 
+.melds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.meld {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(255, 226, 122, 0.22);
+  border-radius: 6px;
+  background: rgba(11, 44, 32, 0.78);
+  padding: 4px 5px;
+}
+
+.meld b {
+  color: #ffe27a;
+  font-size: 12px;
+}
+
+.table > .melds {
+  position: absolute;
+  right: 32px;
+  bottom: 116px;
+  left: 32px;
+}
+
 .player-hand {
   position: absolute;
   right: 32px;
@@ -190,6 +226,12 @@ button {
   border-color: #ffe27a;
   outline: 2px solid rgba(255, 226, 122, 0.42);
   transform: translateY(-4px);
+}
+
+.tile:disabled {
+  cursor: default;
+  opacity: 0.72;
+  transform: none;
 }
 
 .advice-panel {
@@ -225,6 +267,55 @@ button {
   border-radius: 8px;
   background: #273126;
   padding: 14px;
+}
+
+.operation-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(255, 226, 122, 0.38);
+  border-radius: 8px;
+  background: #262f27;
+  padding: 12px;
+}
+
+.operation-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.action-button {
+  min-height: 38px;
+  border: 1px solid #6ecb8e;
+  border-radius: 8px;
+  background: #23362d;
+  color: #e8f6ee;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.action-button.primary {
+  border-color: #ffe27a;
+  background: #e2b64e;
+  color: #1e1b0b;
+}
+
+.action-button.muted {
+  border-color: #51605b;
+  background: #293331;
+  color: #c5d2cc;
+}
+
+.action-button:hover,
+.action-button:focus-visible {
+  outline: 2px solid rgba(255, 226, 122, 0.28);
+  filter: brightness(1.08);
+}
+
+.action-button .mini-tile {
+  min-width: 20px;
+  height: 24px;
+  font-size: 15px;
 }
 
 .best-discard span {
@@ -376,6 +467,11 @@ button {
     gap: 6px;
   }
 
+  .table > .melds {
+    position: static;
+    grid-column: 1 / -1;
+  }
+
   .tile {
     min-height: 68px;
     font-size: 44px;
@@ -383,5 +479,9 @@ button {
 
   .advice-panel {
     padding: 18px;
+  }
+
+  .operation-buttons {
+    grid-template-columns: 1fr;
   }
 }
