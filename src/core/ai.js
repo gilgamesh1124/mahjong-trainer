@@ -75,12 +75,14 @@ export function decideClaim(game, seat, options) {
     let after = player.hand;
     let removed = true;
     try {
-      if (option.type === 'pong') {
+      if (option.type === 'pong' || option.type === 'kong') {
+        // 杠会摸补牌，补回 1 张，故有效手牌规模与碰相同：均按移出 2 张评估，
+        // 既避免对错误规模手牌算向听，也把杠视作"至少不差于碰"。
         after = removeOneTile(removeOneTile(after, lastTile(game)), lastTile(game));
-      } else if (option.type === 'kong') {
-        after = removeOneTile(removeOneTile(removeOneTile(after, lastTile(game)), lastTile(game)), lastTile(game));
       } else if (option.type === 'chi') {
         for (const tile of option.tiles) after = removeOneTile(after, tile);
+      } else {
+        removed = false; // 未知认领类型：不评估
       }
     } catch { removed = false; }
     if (!removed) continue;
