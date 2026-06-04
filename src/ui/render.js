@@ -1,5 +1,6 @@
 import { tileKey, tileLabel } from '../core/tiles.js';
 import { tileFaceSvg } from './tile-face.js';
+import { claimControls, selfActionControls, meldsStrip, resultBanner, actionFlash } from './overlays.js';
 
 const app = document.querySelector('#app');
 
@@ -52,14 +53,15 @@ function miniTiles(tiles) {
   }).join('');
 }
 
-function opponentSeat(player, playerIndex) {
+function opponentSeat(player, playerIndex, activeSeat) {
   const seatClass = SEAT_CLASS_BY_PLAYER[playerIndex];
   const playerName = escapeHtml(PLAYER_NAMES[playerIndex]);
-
+  const active = playerIndex === activeSeat ? ' is-active' : '';
   return `
-    <div class="seat ${seatClass}" aria-label="${playerName}">
+    <div class="seat ${seatClass}${active}" aria-label="${playerName}">
       <div class="seat-name">${playerName}</div>
       <div class="opponent-tiles">${tileBacks(player.hand.length)}</div>
+      ${meldsStrip(player.melds)}
     </div>
   `;
 }
@@ -125,27 +127,30 @@ function findRecommendedIndex(hand, recommendation) {
 }
 
 function findDrawnIndex(game) {
-  const draw = [...game.history]
-    .reverse()
-    .find((entry) => entry.type === 'draw' && entry.playerIndex === 0);
-  if (!draw) return -1;
-  return game.players[0].hand.findIndex((tile) => tileKey(tile) === draw.tileKey);
+  const draw = game.lastDraw;
+  if (!draw || draw.seat !== 0) return -1;
+  return game.players[0].hand.findIndex((tile) => tileKey(tile) === tileKey(draw.tile));
 }
 
-export function renderApp({ game, recommendation, reviewSummary }) {
+export function renderApp({ game, recommendation, reviewSummary, interaction = {} }) {
   const best = recommendation?.best ?? null;
   const bestDiscardFace = best ? tileFaceSvg(best.discard) : '<span class="best-empty">暂无</span>';
   const explanation = best?.explanation ?? '等待可分析的手牌。';
 
   const hand = game.players[0].hand;
-  const recommendedIndex = findRecommendedIndex(hand, recommendation);
+  const isPlayerDiscardTurn = game.phase === 'awaiting-discard' && game.currentPlayer === 0;
+  const recommendedIndex = isPlayerDiscardTurn ? findRecommendedIndex(hand, recommendation) : -1;
   const drawnIndex = findDrawnIndex(game);
+  const activeSeat = game.phase === 'hand-over' ? -1 : game.currentPlayer;
+
+  const handDisabled = isPlayerDiscardTurn ? '' : ' is-disabled';
 
   app.innerHTML = `
     <section class="table" aria-label="长沙麻将训练桌">
-      ${opponentSeat(game.players[2], 2)}
-      ${opponentSeat(game.players[1], 1)}
-      ${opponentSeat(game.players[3], 3)}
+      ${actionFlash(game)}
+      ${opponentSeat(game.players[2], 2, activeSeat)}
+      ${opponentSeat(game.players[1], 1, activeSeat)}
+      ${opponentSeat(game.players[3], 3, activeSeat)}
 
       <div class="center-area">
         <div class="wall-status">牌墙剩余 <strong>${escapeHtml(game.wall.length)}</strong></div>
@@ -154,11 +159,16 @@ export function renderApp({ game, recommendation, reviewSummary }) {
         </div>
       </div>
 
-      <div class="player-hand" aria-label="玩家手牌">
-        ${hand.map((tile, index) => tileButton(tile, index, {
-          recommended: index === recommendedIndex,
-          drawn: index === drawnIndex,
-        })).join('')}
+      <div class="player-zone${activeSeat === 0 ? ' is-active' : ''}">
+        ${meldsStrip(game.players[0].melds)}
+        ${selfActionControls(interaction.selfActions)}
+        ${claimControls(interaction.claimOptions)}
+        <div class="player-hand${handDisabled}" aria-label="玩家手牌">
+          ${hand.map((tile, index) => tileButton(tile, index, {
+            recommended: index === recommendedIndex,
+            drawn: index === drawnIndex,
+          })).join('')}
+        </div>
       </div>
     </section>
 
@@ -168,16 +178,19 @@ export function renderApp({ game, recommendation, reviewSummary }) {
         <span>推荐打</span>
         <div class="best-discard-face">${bestDiscardFace}</div>
       </div>
-      <p class="advice-explanation">${escapeHtml(explanation)}</p>
+      <p class="advice-explanation">${escapeHtml(isPlayerDiscardTurn ? explanation : statusText(game))}</p>
       <h2>备选前三</h2>
-      <ol class="choice-list">
-        ${choicesList(recommendation)}
-      </ol>
+      <ol class="choice-list">${choicesList(recommendation)}</ol>
       <h2>复盘</h2>
-      <div class="review-summary">
-        ${reviewBlock(reviewSummary)}
-      </div>
+      <div class="review-summary">${reviewBlock(reviewSummary)}</div>
       <button class="new-hand-button" type="button">新开一局</button>
     </aside>
+
+    ${resultBanner(game.result, PLAYER_NAMES)}
   `;
+}
+
+function statusText(game) {
+  if (game.phase === 'hand-over') return '本局结束。';
+  return `轮到 ${PLAYER_NAMES[game.currentPlayer]}…`;
 }
