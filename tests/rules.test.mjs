@@ -208,11 +208,17 @@ test('isWinningTiles rejects wrong tile count for meld count', () => {
   assert.equal(isWinningTiles(concealed, 1), false);
 });
 
-test('shantenWithMelds matches shantenNumber when meldCount is 0', () => {
-  const hand = tiles([
-    ['wan', 1], ['wan', 2], ['wan', 3], ['wan', 4], ['wan', 5],
-    ['wan', 6], ['wan', 7], ['wan', 8], ['wan', 9],
-    ['tong', 1], ['tong', 2], ['tong', 3], ['tiao', 1],
+test('shantenWithMelds returns -1 for a complete hand with one meld', () => {
+  // meldCount=1 → 11 张暗手牌（3 套 + 1 对）即和牌，向听 -1
+  const concealed = tiles([
+    ['wan', 1], ['wan', 2], ['wan', 3],
+    ['wan', 7], ['wan', 8], ['wan', 9],
+    ['tong', 4], ['tong', 5], ['tong', 6],
+    ['tong', 9], ['tong', 9],
   ]);
-  assert.equal(shantenWithMelds(hand, 0), shantenNumber(hand));
+  assert.equal(shantenWithMelds(concealed, 1), -1);
+});
+
+test('shantenWithMelds throws on out-of-range meldCount', () => {
+  assert.throws(() => shantenWithMelds([], 5), /meldCount out of range/);
 });

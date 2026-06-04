@@ -197,7 +197,12 @@ function shantenMelds(counts, idx, mentsu, taatsu) {
   return best;
 }
 
+// hand = 暗手牌（不含副露）；长度应为 13 - 3*meldCount（摸牌后 +1）。meldCount 为已成副露数 0..4。
 export function shantenWithMelds(hand, meldCount = 0) {
+  if (meldCount < 0 || meldCount > 4) {
+    throw new RangeError(`meldCount out of range: ${meldCount}`);
+  }
+
   const counts = tilesToCounts27(hand);
   let best = 8;
 
@@ -217,6 +222,7 @@ export function shantenNumber(hand) {
   return shantenWithMelds(hand, 0);
 }
 
+// hand13 = 暗手牌（不含副露）；含副露时长度为 13 - 3*meldCount，非固定 13。
 export function calcUkeire(hand13, visibleCounts, meldCount = 0) {
   const currentShanten = shantenWithMelds(hand13, meldCount);
   const useful = [];
