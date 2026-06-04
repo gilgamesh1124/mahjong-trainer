@@ -8,6 +8,7 @@ import {
   drawTile,
   passClaim,
 } from '../src/core/game-state.js';
+import { hasJiangTile } from '../src/core/rules.js';
 import { tileKey } from '../src/core/tiles.js';
 
 function tile(suit, rank) {
@@ -18,8 +19,8 @@ function tiles(specs) {
   return specs.map(([suit, rank]) => tile(suit, rank));
 }
 
-function player(hand, discards = [], melds = []) {
-  return { hand, discards, melds };
+function player(hand, discards = [], melds = [], flags = {}) {
+  return { hand, discards, melds, flags };
 }
 
 function makeGame(players, extras = {}) {
@@ -51,6 +52,69 @@ test('createInitialGame deals the starting hands and sets turn state', () => {
   assert.equal(game.seed, 1234);
   assert.equal('originalWall' in game, false);
   assert.deepEqual(game.history, []);
+  assert.deepEqual(
+    game.players.map((candidate) => candidate.flags.initialNoJiang),
+    game.players.map((candidate) => !hasJiangTile(candidate.hand)),
+  );
+});
+
+test('discardTile requires a 2 5 8 pair for normal hu claims', () => {
+  const discarded = tile('wan', 9);
+  const game = makeGame([
+    player(tiles([['wan', 9], ['tong', 1]])),
+    player(tiles([
+      ['wan', 1],
+      ['wan', 2],
+      ['wan', 3],
+      ['wan', 4],
+      ['wan', 5],
+      ['wan', 6],
+      ['tong', 1],
+      ['tong', 2],
+      ['tong', 3],
+      ['tiao', 1],
+      ['tiao', 2],
+      ['tiao', 3],
+      ['wan', 9],
+    ]), [], [], { initialNoJiang: false }),
+    player(tiles([['tong', 1]])),
+    player(tiles([['tong', 2]])),
+  ]);
+
+  const nextGame = discardTile(game, 0, discarded);
+
+  assert.equal(nextGame.phase, 'awaiting-draw');
+  assert.equal(nextGame.pendingAction, null);
+});
+
+test('discardTile allows non-jiang pair hu claims for initial no-jiang route', () => {
+  const discarded = tile('wan', 9);
+  const game = makeGame([
+    player(tiles([['wan', 9], ['tong', 1]])),
+    player(tiles([
+      ['wan', 1],
+      ['wan', 2],
+      ['wan', 3],
+      ['wan', 4],
+      ['wan', 5],
+      ['wan', 6],
+      ['tong', 1],
+      ['tong', 2],
+      ['tong', 3],
+      ['tiao', 1],
+      ['tiao', 2],
+      ['tiao', 3],
+      ['wan', 9],
+    ]), [], [], { initialNoJiang: true }),
+    player(tiles([['tong', 1]])),
+    player(tiles([['tong', 2]])),
+  ]);
+
+  const nextGame = discardTile(game, 0, discarded);
+
+  assert.equal(nextGame.phase, 'awaiting-claim');
+  assert.deepEqual(nextGame.pendingAction.responses.map((response) => response.playerIndex), [1]);
+  assert.deepEqual(nextGame.pendingAction.responses[0].actions, ['hu']);
 });
 
 test('drawTile consumes the next wall tile without mutating the input game', () => {
@@ -165,11 +229,11 @@ test('discardTile creates pending actions for hu peng and chi without changing t
       ['tiao', 1],
       ['tiao', 2],
       ['tiao', 3],
+      ['tong', 4],
       ['tong', 5],
-      ['tong', 5],
-      ['tong', 5],
-      ['tiao', 9],
-      ['tiao', 9],
+      ['tong', 6],
+      ['wan', 5],
+      ['wan', 5],
     ])),
   ], { wall });
 
@@ -288,17 +352,17 @@ test('claimDiscard ends the hand when a player claims hu', () => {
     player(tiles([
       ['wan', 1],
       ['wan', 2],
-      ['wan', 3],
       ['tong', 1],
       ['tong', 2],
       ['tong', 3],
       ['tiao', 1],
       ['tiao', 2],
       ['tiao', 3],
+      ['tong', 4],
       ['tong', 5],
-      ['tong', 5],
-      ['tong', 5],
-      ['wan', 3],
+      ['tong', 6],
+      ['wan', 5],
+      ['wan', 5],
     ])),
   ]), 0, discarded);
 

@@ -15,7 +15,12 @@ const EXPOSURE_PENALTY = {
   gang: 10,
 };
 
-export function recommendOperation({ game, playerIndex, visibleTiles = null }) {
+export function recommendOperation({
+  game,
+  playerIndex,
+  visibleTiles = null,
+  requireJiangPair = false,
+}) {
   const response = game.pendingAction?.responses.find(
     (candidate) => candidate.playerIndex === playerIndex,
   );
@@ -28,6 +33,9 @@ export function recommendOperation({ game, playerIndex, visibleTiles = null }) {
   const discardedTile = game.pendingAction.tile;
   const visibleCounts = buildVisibleCounts(visibleTiles ?? visibleTilesFromGame(game));
   const openMeldCount = player.melds.length;
+  const ruleNote = requireJiangPair
+    ? '普通胡按 2/5/8 作将计算'
+    : '起手无将路线暂不强制 2/5/8 作将';
   const choices = [];
 
   if (response.actions.includes('hu')) {
@@ -37,7 +45,7 @@ export function recommendOperation({ game, playerIndex, visibleTiles = null }) {
       score: 20000,
       shanten: -1,
       ukeireCount: 0,
-      explanation: `能胡就直接胡，这是确定收益，优先级高于吃碰杠。`,
+      explanation: `能胡就直接胡，这是确定收益。${ruleNote}。`,
     });
   }
 
@@ -48,6 +56,8 @@ export function recommendOperation({ game, playerIndex, visibleTiles = null }) {
       openMeldCount,
       discardedTile,
       visibleCounts,
+      requireJiangPair,
+      ruleNote,
     }));
   }
 
@@ -58,6 +68,8 @@ export function recommendOperation({ game, playerIndex, visibleTiles = null }) {
       openMeldCount,
       discardedTile,
       visibleCounts,
+      requireJiangPair,
+      ruleNote,
     }));
   }
 
@@ -69,6 +81,8 @@ export function recommendOperation({ game, playerIndex, visibleTiles = null }) {
         openMeldCount,
         discardedTile,
         visibleCounts,
+        requireJiangPair,
+        ruleNote,
         tiles: option,
       }));
     }
@@ -79,6 +93,8 @@ export function recommendOperation({ game, playerIndex, visibleTiles = null }) {
     openMeldCount,
     visibleCounts,
     discardedTile,
+    requireJiangPair,
+    ruleNote,
   }));
 
   choices.sort((a, b) => {
@@ -90,6 +106,7 @@ export function recommendOperation({ game, playerIndex, visibleTiles = null }) {
     id: `operation-${game.pendingAction.tileKey}-${choices.map(actionSortKey).join('-')}`,
     best: choices[0] ?? null,
     choices,
+    ruleNote,
   };
 }
 
@@ -99,19 +116,28 @@ function buildClaimChoice({
   openMeldCount,
   discardedTile,
   visibleCounts,
+  requireJiangPair,
+  ruleNote,
   tiles = [],
 }) {
+  const options = { requireJiangPair };
   const tilesToRemove = tiles.length > 0
     ? tiles.filter((tile) => tileKey(tile) !== tileKey(discardedTile))
     : repeatedTiles(discardedTile, action === 'gang' ? 3 : 2);
   const concealedAfterClaim = sortTiles(removeTiles(hand, tilesToRemove));
   const openAfterClaim = openMeldCount + 1;
-  const bestDiscard = bestDiscardAfterClaim(concealedAfterClaim, visibleCounts, openAfterClaim);
-  const shanten = bestDiscard?.shanten ?? shantenNumber(concealedAfterClaim, openAfterClaim);
+  const bestDiscard = bestDiscardAfterClaim(
+    concealedAfterClaim,
+    visibleCounts,
+    openAfterClaim,
+    options,
+  );
+  const shanten = bestDiscard?.shanten ?? shantenNumber(concealedAfterClaim, openAfterClaim, options);
   const ukeireCount = bestDiscard?.ukeireCount ?? calcUkeire(
     concealedAfterClaim,
     visibleCounts,
     openAfterClaim,
+    options,
   ).totalCount;
   const score = scoreHand(shanten, ukeireCount) - (EXPOSURE_PENALTY[action] ?? 0);
 
@@ -128,13 +154,22 @@ function buildClaimChoice({
       shanten,
       ukeireCount,
       discardAfterClaim: bestDiscard?.discard ?? null,
+      ruleNote,
     }),
   };
 }
 
-function buildPassChoice({ hand, openMeldCount, visibleCounts, discardedTile }) {
-  const shanten = shantenNumber(hand, openMeldCount);
-  const ukeire = calcUkeire(hand, visibleCounts, openMeldCount);
+function buildPassChoice({
+  hand,
+  openMeldCount,
+  visibleCounts,
+  discardedTile,
+  requireJiangPair,
+  ruleNote,
+}) {
+  const options = { requireJiangPair };
+  const shanten = shantenNumber(hand, openMeldCount, options);
+  const ukeire = calcUkeire(hand, visibleCounts, openMeldCount, options);
 
   return {
     action: 'pass',
@@ -142,18 +177,18 @@ function buildPassChoice({ hand, openMeldCount, visibleCounts, discardedTile }) 
     score: scoreHand(shanten, ukeire.totalCount) + 20,
     shanten,
     ukeireCount: ukeire.totalCount,
-    explanation: `建议过时，是保留当前手牌结构：现在 ${formatShanten(shanten)}，共有 ${ukeire.totalCount} 张进张。`,
+    explanation: `建议过时，是保留当前手牌结构：现在${formatShanten(shanten)}，共 ${ukeire.totalCount} 张进张。${ruleNote}。`,
   };
 }
 
-function bestDiscardAfterClaim(hand, visibleCounts, openMeldCount) {
+function bestDiscardAfterClaim(hand, visibleCounts, openMeldCount, options) {
   const uniqueDiscards = uniqueTiles(hand);
   let best = null;
 
   for (const discard of uniqueDiscards) {
     const afterDiscard = removeOneTile(hand, discard);
-    const shanten = shantenNumber(afterDiscard, openMeldCount);
-    const ukeire = calcUkeire(afterDiscard, visibleCounts, openMeldCount);
+    const shanten = shantenNumber(afterDiscard, openMeldCount, options);
+    const ukeire = calcUkeire(afterDiscard, visibleCounts, openMeldCount, options);
     const score = scoreHand(shanten, ukeire.totalCount);
 
     if (
@@ -179,18 +214,19 @@ function buildClaimExplanation({
   shanten,
   ukeireCount,
   discardAfterClaim,
+  ruleNote,
 }) {
   const label = ACTION_LABELS[action];
   const discardText = discardAfterClaim ? `，之后倾向打 ${tileLabel(discardAfterClaim)}` : '';
-  const gangText = action === 'gang' ? '杠后会补摸一张，实际结果仍取决于牌墙随机顺序；' : '';
+  const gangText = action === 'gang' ? '杠后会补摸一张，实际结果仍取决于随机牌墙；' : '';
 
-  return `${label}${tileLabel(discardedTile)}后${discardText}，${gangText}${formatShanten(shanten)}，估计 ${ukeireCount} 张进张。`;
+  return `${label}${tileLabel(discardedTile)}后${discardText}，${gangText}${formatShanten(shanten)}，估计 ${ukeireCount} 张进张。${ruleNote}。`;
 }
 
 function formatShanten(shanten) {
-  if (shanten < 0) return '已经和牌';
+  if (shanten < 0) return '已经胡牌';
   if (shanten === 0) return '已经听牌';
-  return `还差 ${shanten} 向`;
+  return `还差 ${shanten} 向听`;
 }
 
 function scoreHand(shanten, ukeireCount) {

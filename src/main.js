@@ -5,6 +5,7 @@ import {
   discardTile,
   drawTile,
   passClaim,
+  shouldRequireJiangPair,
 } from './core/game-state.js';
 import { chooseComputerDiscard } from './core/computer-strategy.js';
 import { recommendOperation } from './core/operation-advice.js';
@@ -46,6 +47,8 @@ function recommendCurrentHand() {
   return recommendDiscards({
     hand: game.players[0].hand,
     visibleTiles: visibleTiles(),
+    openMeldCount: game.players[0].melds.length,
+    requireJiangPair: shouldRequireJiangPair(game.players[0]),
   });
 }
 
@@ -66,6 +69,7 @@ function recommendCurrentOperation() {
     game,
     playerIndex: 0,
     visibleTiles: visibleTiles(),
+    requireJiangPair: shouldRequireJiangPair(game.players[0]),
   });
 }
 
@@ -73,7 +77,9 @@ function canPlayerSelfWin() {
   return (
     game.phase === 'awaiting-discard'
     && game.currentPlayer === 0
-    && isWinningHand(game.players[0].hand)
+    && isWinningHand(game.players[0].hand, {
+      requireJiangPair: shouldRequireJiangPair(game.players[0]),
+    })
   );
 }
 
@@ -114,6 +120,7 @@ function discardFirstTile(playerIndex) {
       hand: game.players[playerIndex].hand,
       visibleTiles: visibleTiles(),
       openMeldCount: game.players[playerIndex].melds.length,
+      requireJiangPair: shouldRequireJiangPair(game.players[playerIndex]),
     }).discard;
 
   if (!tile) {
@@ -208,7 +215,9 @@ function continueUntilPlayerDecision() {
         break;
       }
 
-      if (isWinningHand(game.players[playerIndex].hand)) {
+      if (isWinningHand(game.players[playerIndex].hand, {
+        requireJiangPair: shouldRequireJiangPair(game.players[playerIndex]),
+      })) {
         if (playerIndex === 0) {
           break;
         }

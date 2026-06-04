@@ -1,5 +1,5 @@
 import { createSeededRandom, shuffle } from './random.js';
-import { isWinningHand } from './rules.js';
+import { hasJiangTile, isWinningHand } from './rules.js';
 import { createTileSet, removeOneTile, sortTiles, tileKey } from './tiles.js';
 
 const ACTION_PRIORITY = {
@@ -18,6 +18,7 @@ function clonePlayers(players) {
       ...meld,
       tiles: [...meld.tiles],
     })),
+    flags: { ...(player.flags ?? {}) },
   }));
 }
 
@@ -26,6 +27,9 @@ function createPlayer(hand = []) {
     hand,
     discards: [],
     melds: [],
+    flags: {
+      initialNoJiang: !hasJiangTile(hand),
+    },
   };
 }
 
@@ -125,10 +129,11 @@ export function getAvailableActions(game, playerIndex, discardedTile, fromPlayer
 
   const hand = game.players[playerIndex].hand;
   const matchingCount = countMatchingTiles(hand, discardedTile);
+  const requireJiangPair = shouldRequireJiangPair(game.players[playerIndex]);
   const actions = [];
   const chiOptions = [];
 
-  if (isWinningHand([...hand, discardedTile])) {
+  if (isWinningHand([...hand, discardedTile], { requireJiangPair })) {
     actions.push('hu');
   }
 
@@ -404,7 +409,9 @@ export function passClaim(game, playerIndex) {
 }
 
 export function declareSelfWin(game, playerIndex) {
-  if (!isWinningHand(game.players[playerIndex].hand)) {
+  const requireJiangPair = shouldRequireJiangPair(game.players[playerIndex]);
+
+  if (!isWinningHand(game.players[playerIndex].hand, { requireJiangPair })) {
     throw new Error('Player does not have a winning hand');
   }
 
@@ -430,4 +437,8 @@ export function declareSelfWin(game, playerIndex) {
       },
     ],
   };
+}
+
+export function shouldRequireJiangPair(player) {
+  return !player.flags?.initialNoJiang;
 }

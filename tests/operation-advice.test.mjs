@@ -150,3 +150,34 @@ test('recommendOperation scores chi choices with Chinese explanations', () => {
   assert.match(chiChoice.explanation, /吃/);
   assert.ok(Number.isInteger(chiChoice.ukeireCount));
 });
+
+test('recommendOperation explains the active jiang pair route', () => {
+  const game = makePendingGame({
+    discardedTile: tile('wan', 9),
+    actions: ['peng'],
+    hand: tiles([
+      ['wan', 1],
+      ['wan', 2],
+      ['wan', 3],
+      ['tong', 1],
+      ['tong', 2],
+      ['tong', 3],
+      ['tiao', 1],
+      ['tiao', 2],
+      ['wan', 9],
+      ['wan', 9],
+      ['tong', 7],
+      ['tiao', 8],
+      ['tiao', 9],
+    ]),
+  });
+
+  const advice = recommendOperation({
+    game,
+    playerIndex: 0,
+    requireJiangPair: true,
+  });
+
+  assert.match(advice.ruleNote, /2\/5\/8 作将/);
+  assert.ok(advice.choices.every((choice) => /2\/5\/8 作将/.test(choice.explanation)));
+});

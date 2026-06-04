@@ -290,6 +290,10 @@ export function renderApp({
   const bestDiscardLabel = best ? tileGlyph(best.discard) : '暂无';
   const explanation = best?.explanation ?? '当前不是标准摸牌后的 14 张手牌，先完成吃碰杠胡或出牌操作。';
   const canDiscard = game.phase === 'awaiting-discard' && game.currentPlayer === 0;
+  const initialNoJiang = game.players[0].flags?.initialNoJiang;
+  const ruleBadge = initialNoJiang
+    ? '<div class="rule-badge">起手无将：本局建议不强制 2/5/8 作将</div>'
+    : '<div class="rule-badge">普通胡：按 2/5/8 作将计算</div>';
 
   app.innerHTML = `
     <section class="table" aria-label="长沙麻将训练桌">
@@ -313,6 +317,7 @@ export function renderApp({
 
     <aside class="advice-panel" aria-label="盘中提醒">
       <h1>盘中提醒</h1>
+      ${ruleBadge}
       ${operationPanel(game, selfWinAvailable, operationAdvice)}
       <div class="best-discard">
         <span>推荐打</span>

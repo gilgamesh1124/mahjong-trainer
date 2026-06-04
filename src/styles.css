@@ -260,6 +260,16 @@ button {
   font-size: 15px;
 }
 
+.rule-badge {
+  border: 1px solid rgba(125, 211, 252, 0.32);
+  border-radius: 8px;
+  background: rgba(125, 211, 252, 0.1);
+  color: #d8f3ff;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 8px 10px;
+}
+
 .best-discard {
   display: grid;
   gap: 6px;

@@ -3,6 +3,9 @@ import test from 'node:test';
 
 import {
   getUsefulTilesAfterDiscard,
+  getWinningTiles,
+  hasJiangTile,
+  isJiangTile,
   isTenpai,
   isWinningHand,
   shantenNumber,
@@ -36,6 +39,99 @@ test('isWinningHand detects four sets and one pair', () => {
   ]);
 
   assert.equal(isWinningHand(hand), true);
+});
+
+test('isJiangTile detects 2 5 8 as jiang tiles', () => {
+  assert.equal(isJiangTile(tile('wan', 2)), true);
+  assert.equal(isJiangTile(tile('tong', 5)), true);
+  assert.equal(isJiangTile(tile('tiao', 8)), true);
+  assert.equal(isJiangTile(tile('wan', 9)), false);
+});
+
+test('hasJiangTile detects whether a hand contains any 2 5 8 tile', () => {
+  assert.equal(hasJiangTile(tiles([
+    ['wan', 1],
+    ['tong', 3],
+    ['tiao', 7],
+  ])), false);
+  assert.equal(hasJiangTile(tiles([
+    ['wan', 1],
+    ['tong', 5],
+    ['tiao', 7],
+  ])), true);
+});
+
+test('isWinningHand requires 2 5 8 pair when jiang pair rule is enabled', () => {
+  const nonJiangPairHand = tiles([
+    ['wan', 1],
+    ['wan', 2],
+    ['wan', 3],
+    ['wan', 4],
+    ['wan', 5],
+    ['wan', 6],
+    ['tong', 1],
+    ['tong', 2],
+    ['tong', 3],
+    ['tiao', 1],
+    ['tiao', 2],
+    ['tiao', 3],
+    ['wan', 9],
+    ['wan', 9],
+  ]);
+
+  assert.equal(isWinningHand(nonJiangPairHand, { requireJiangPair: true }), false);
+  assert.equal(isWinningHand(nonJiangPairHand, { requireJiangPair: false }), true);
+});
+
+test('getWinningTiles filters non-jiang pair wins when jiang pair rule is enabled', () => {
+  const hand = tiles([
+    ['wan', 1],
+    ['wan', 2],
+    ['wan', 3],
+    ['wan', 4],
+    ['wan', 5],
+    ['wan', 6],
+    ['tong', 1],
+    ['tong', 2],
+    ['tong', 3],
+    ['tiao', 1],
+    ['tiao', 2],
+    ['tiao', 3],
+    ['wan', 9],
+  ]);
+
+  assert.deepEqual(getWinningTiles(hand, [], { requireJiangPair: true }), []);
+  assert.deepEqual(getWinningTiles(hand, [], { requireJiangPair: false }), [{
+    tile: tile('wan', 9),
+    remaining: 3,
+  }]);
+});
+
+test('calcUkeire filters useful tiles through the jiang pair rule', () => {
+  const hand = tiles([
+    ['wan', 1],
+    ['wan', 2],
+    ['wan', 3],
+    ['wan', 4],
+    ['wan', 5],
+    ['wan', 6],
+    ['tong', 1],
+    ['tong', 2],
+    ['tong', 3],
+    ['tiao', 1],
+    ['tiao', 2],
+    ['tiao', 3],
+    ['wan', 9],
+  ]);
+
+  const strict = calcUkeire(hand, new Map(), 0, { requireJiangPair: true });
+  const relaxed = calcUkeire(hand, new Map(), 0, { requireJiangPair: false });
+
+  assert.equal(strict.totalCount, 0);
+  assert.deepEqual(relaxed.tiles, [{
+    tile: tile('wan', 9),
+    remaining: 3,
+  }]);
 });
 
 test('isWinningHand rejects incomplete hand', () => {

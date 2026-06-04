@@ -96,3 +96,30 @@ test('chooseComputerDiscard does not mutate the hand and does not require the wa
   assert.ok(result.discard);
   assert.equal('wall' in result, false);
 });
+
+test('chooseComputerDiscard applies 2 5 8 pair rule to scoring', () => {
+  const hand = tiles([
+    ['wan', 1],
+    ['wan', 2],
+    ['wan', 3],
+    ['wan', 4],
+    ['wan', 5],
+    ['wan', 6],
+    ['tong', 1],
+    ['tong', 2],
+    ['tong', 3],
+    ['tiao', 1],
+    ['tiao', 2],
+    ['tiao', 3],
+    ['wan', 9],
+    ['tiao', 9],
+  ]);
+
+  const strict = chooseComputerDiscard({ hand, requireJiangPair: true });
+  const relaxed = chooseComputerDiscard({ hand, requireJiangPair: false });
+  const strictChoice = strict.choices.find(c => tileKey(c.discard) === 'tiao-9');
+  const relaxedChoice = relaxed.choices.find(c => tileKey(c.discard) === 'tiao-9');
+
+  assert.equal(strictChoice.ukeireCount, 0);
+  assert.equal(relaxedChoice.ukeireCount, 3);
+});

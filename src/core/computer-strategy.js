@@ -1,7 +1,12 @@
 import { calcUkeire, shantenNumber } from './rules.js';
 import { removeOneTile, tileKey } from './tiles.js';
 
-export function chooseComputerDiscard({ hand, visibleTiles = [], openMeldCount = 0 }) {
+export function chooseComputerDiscard({
+  hand,
+  visibleTiles = [],
+  openMeldCount = 0,
+  requireJiangPair = false,
+}) {
   const visibleCounts = buildVisibleCounts(visibleTiles);
   const choices = uniqueTiles(hand)
     .map((discard) => buildDiscardChoice({
@@ -9,6 +14,7 @@ export function chooseComputerDiscard({ hand, visibleTiles = [], openMeldCount =
       discard,
       visibleCounts,
       openMeldCount,
+      requireJiangPair,
     }))
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
@@ -22,10 +28,17 @@ export function chooseComputerDiscard({ hand, visibleTiles = [], openMeldCount =
   };
 }
 
-function buildDiscardChoice({ hand, discard, visibleCounts, openMeldCount }) {
+function buildDiscardChoice({
+  hand,
+  discard,
+  visibleCounts,
+  openMeldCount,
+  requireJiangPair,
+}) {
   const afterDiscard = removeOneTile(hand, discard);
-  const shanten = shantenNumber(afterDiscard, openMeldCount);
-  const ukeire = calcUkeire(afterDiscard, visibleCounts, openMeldCount);
+  const options = { requireJiangPair };
+  const shanten = shantenNumber(afterDiscard, openMeldCount, options);
+  const ukeire = calcUkeire(afterDiscard, visibleCounts, openMeldCount, options);
 
   return {
     discard,

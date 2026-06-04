@@ -4,7 +4,19 @@ const SUITED_TILES = ['wan', 'tiao', 'tong'].flatMap((suit) =>
   Array.from({ length: 9 }, (_, index) => ({ suit, rank: index + 1 })),
 );
 
-export function isWinningHand(hand) {
+export function isWinningHand(hand, options = {}) {
+  return isWinningHandWithOptions(hand, options);
+}
+
+export function isJiangTile(tile) {
+  return tile.rank === 2 || tile.rank === 5 || tile.rank === 8;
+}
+
+export function hasJiangTile(tiles) {
+  return tiles.some(isJiangTile);
+}
+
+function isWinningHandWithOptions(hand, { requireJiangPair = false } = {}) {
   if (hand.length !== 14) {
     return false;
   }
@@ -13,6 +25,10 @@ export function isWinningHand(hand) {
 
   for (const [key, count] of counts) {
     if (count < 2) {
+      continue;
+    }
+
+    if (requireJiangPair && !isJiangTile(parseTileKey(key))) {
       continue;
     }
 
@@ -27,15 +43,15 @@ export function isWinningHand(hand) {
   return false;
 }
 
-export function isTenpai(hand) {
+export function isTenpai(hand, options = {}) {
   if (hand.length !== 13) {
     return false;
   }
 
-  return getWinningTiles(hand).length > 0;
+  return getWinningTiles(hand, [], options).length > 0;
 }
 
-export function getWinningTiles(hand, visibleTiles = []) {
+export function getWinningTiles(hand, visibleTiles = [], options = {}) {
   if (hand.length !== 13) {
     return [];
   }
@@ -48,7 +64,7 @@ export function getWinningTiles(hand, visibleTiles = []) {
     const key = tileKey(tile);
     const remaining = 4 - (visibleCounts.get(key) ?? 0) - (handCounts.get(key) ?? 0);
 
-    if (remaining > 0 && isWinningHand([...hand, tile])) {
+    if (remaining > 0 && isWinningHandWithOptions([...hand, tile], options)) {
       winningTiles.push({ tile, remaining });
     }
   }
@@ -56,10 +72,15 @@ export function getWinningTiles(hand, visibleTiles = []) {
   return winningTiles;
 }
 
-export function getUsefulTilesAfterDiscard(hand, discard, visibleTiles = []) {
+export function getUsefulTilesAfterDiscard(hand, discard, visibleTiles = [], options = {}) {
   const handAfterDiscard = removeOneTile(hand, discard);
 
-  return getWinningTiles(handAfterDiscard, visibleTiles);
+  return getWinningTiles(handAfterDiscard, visibleTiles, options);
+}
+
+function parseTileKey(key) {
+  const [suit, rank] = key.split('-');
+  return { suit, rank: Number(rank) };
 }
 
 function canFormSets(counts) {
@@ -199,12 +220,16 @@ function shantenMelds(counts, idx, mentsu, taatsu) {
   return best;
 }
 
-export function shantenNumber(hand, openMeldCount = 0) {
+export function shantenNumber(hand, openMeldCount = 0, { requireJiangPair = false } = {}) {
   const counts = tilesToCounts27(hand);
   let best = 8;
 
   for (let i = 0; i < 27; i++) {
     if (counts[i] >= 2) {
+      if (requireJiangPair && !isJiangIndex(i)) {
+        continue;
+      }
+
       counts[i] -= 2;
       best = Math.min(best, shantenMelds(counts, 0, openMeldCount, 0) - 1);
       counts[i] += 2;
@@ -215,8 +240,8 @@ export function shantenNumber(hand, openMeldCount = 0) {
   return best;
 }
 
-export function calcUkeire(hand13, visibleCounts, openMeldCount = 0) {
-  const currentShanten = shantenNumber(hand13, openMeldCount);
+export function calcUkeire(hand13, visibleCounts, openMeldCount = 0, options = {}) {
+  const currentShanten = shantenNumber(hand13, openMeldCount, options);
   const useful = [];
   let totalCount = 0;
 
@@ -230,7 +255,7 @@ export function calcUkeire(hand13, visibleCounts, openMeldCount = 0) {
 
       if (remaining <= 0) continue;
 
-      if (shantenNumber([...hand13, tile], openMeldCount) < currentShanten) {
+      if (shantenNumber([...hand13, tile], openMeldCount, options) < currentShanten) {
         useful.push({ tile, remaining });
         totalCount += remaining;
       }
@@ -238,4 +263,9 @@ export function calcUkeire(hand13, visibleCounts, openMeldCount = 0) {
   }
 
   return { tiles: useful, totalCount };
+}
+
+function isJiangIndex(index) {
+  const rank = (index % 9) + 1;
+  return rank === 2 || rank === 5 || rank === 8;
 }
