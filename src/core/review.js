@@ -1,32 +1,55 @@
-import { tileKey, tileLabel } from './tiles.js';
+import { tileLabel } from './tiles.js';
 
 export function recordDecision(records, { turn, chosenDiscard, recommendation }) {
-  const best = recommendation.best;
-  const followedBest = best ? tileKey(chosenDiscard) === tileKey(best.discard) : false;
+  const best = recommendation?.best ?? null;
+  const followedBest = best
+    ? chosenDiscard.suit === best.discard.suit && chosenDiscard.rank === best.discard.rank
+    : true;
+
+  const chosenChoice = recommendation?.choices?.find(
+    (c) => c.discard.suit === chosenDiscard.suit && c.discard.rank === chosenDiscard.rank,
+  ) ?? null;
 
   return [
     ...records,
     {
       turn,
       chosenDiscard,
-      chosenLabel: tileLabel(chosenDiscard),
-      bestDiscard: best?.discard ?? null,
-      bestLabel: best ? tileLabel(best.discard) : '',
+      chosenShanten: chosenChoice?.shanten ?? null,
+      chosenUkeire: chosenChoice?.ukeireCount ?? null,
+      bestShanten: best?.shanten ?? null,
+      bestUkeire: best?.ukeireCount ?? null,
       followedBest,
-      bestScore: best?.score ?? null,
-      bestExplanation: best?.explanation ?? '',
+      recommendationId: recommendation?.id ?? null,
+      explanation: best?.explanation ?? null,
     },
   ];
 }
 
 export function summarizeReview(records) {
-  return {
-    totalDecisions: records.length,
-    followedBestCount: records.filter((record) => record.followedBest).length,
-    keyMoments: records
-      .filter((record) => !record.followedBest)
-      .map((record) => (
-        `第${record.turn}巡：你打了${record.chosenLabel}，系统建议打${record.bestLabel}。${record.bestExplanation}`
-      )),
-  };
+  if (records.length === 0) {
+    return { totalDecisions: 0, followedBestCount: 0, keyMoments: [] };
+  }
+
+  const followedBestCount = records.filter((r) => r.followedBest).length;
+
+  const keyMoments = records
+    .filter((r) => {
+      if (r.followedBest) return false;
+      const shantenWorse = r.chosenShanten != null && r.bestShanten != null
+        && r.chosenShanten > r.bestShanten;
+      const ukeireDropped = r.chosenUkeire != null && r.bestUkeire != null
+        && r.bestUkeire > 0 && r.chosenUkeire < r.bestUkeire * 0.6;
+      return shantenWorse || ukeireDropped;
+    })
+    .slice(0, 5)
+    .map((r) => {
+      const chosen = tileLabel(r.chosenDiscard);
+      if (r.chosenShanten != null && r.bestShanten != null && r.chosenShanten > r.bestShanten) {
+        return `第${r.turn}回合：打${chosen}后向听数增加（差${r.chosenShanten - r.bestShanten}向），${r.explanation ?? ''}`;
+      }
+      return `第${r.turn}回合：打${chosen}后进张减少（${r.chosenUkeire} 张 vs 推荐 ${r.bestUkeire} 张），${r.explanation ?? ''}`;
+    });
+
+  return { totalDecisions: records.length, followedBestCount, keyMoments };
 }
