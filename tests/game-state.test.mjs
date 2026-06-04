@@ -3,8 +3,13 @@ import assert from 'node:assert/strict';
 
 import {
   createInitialGame,
-  discardTile,
   drawTile,
+  applyDiscard,
+  applyPong,
+  applyChi,
+  applyKong,
+  applyWin,
+  markDraw,
 } from '../src/core/game-state.js';
 import { tileKey } from '../src/core/tiles.js';
 
@@ -43,39 +48,6 @@ test('drawTile consumes the next wall tile without mutating the input game', () 
   });
 });
 
-test('discardTile removes one matching tile, appends discard, and records recommendation metadata', () => {
-  const game = createInitialGame({ seed: 1234 });
-  const tile = game.players[0].hand[0];
-  const originalHandLength = game.players[0].hand.length;
-  const originalDiscardsLength = game.players[0].discards.length;
-
-  const nextGame = discardTile(game, 0, tile, { recommendationId: 'rec-1' });
-
-  assert.notEqual(nextGame, game);
-  assert.equal(nextGame.players[0].hand.length, originalHandLength - 1);
-  assert.equal(nextGame.players[0].discards.length, originalDiscardsLength + 1);
-  assert.deepEqual(nextGame.players[0].discards.at(-1), tile);
-  assert.equal(game.players[0].hand.length, originalHandLength);
-  assert.equal(game.players[0].discards.length, originalDiscardsLength);
-  assert.equal(nextGame.currentPlayer, 1);
-  assert.equal(nextGame.phase, 'awaiting-draw');
-  assert.deepEqual(nextGame.history.at(-1), {
-    type: 'discard',
-    playerIndex: 0,
-    tileKey: `${tile.suit}-${tile.rank}`,
-    recommendationId: 'rec-1',
-  });
-});
-
-test('discardTile rejects a tile that is not in the player hand', () => {
-  const game = createInitialGame({ seed: 1234 });
-
-  assert.throws(
-    () => discardTile(game, 0, { suit: 'wan', rank: 10 }),
-    /Tile not in hand/,
-  );
-});
-
 test('drawTile rejects drawing from an empty wall', () => {
   const game = {
     ...createInitialGame({ seed: 1234 }),
@@ -83,4 +55,83 @@ test('drawTile rejects drawing from an empty wall', () => {
   };
 
   assert.throws(() => drawTile(game, 1), /Wall is empty/);
+});
+
+test('applyDiscard moves tile to discards and opens claim window', () => {
+  const game = createInitialGame({ seed: 1234 });
+  const tile = game.players[0].hand[0];
+
+  const next = applyDiscard(game, 0, tile);
+
+  assert.notEqual(next, game);
+  assert.equal(next.players[0].hand.length, 13);
+  assert.deepEqual(next.players[0].discards.at(-1), tile);
+  assert.equal(next.currentPlayer, 0);            // 出牌后留在打牌者，待认领
+  assert.equal(next.phase, 'awaiting-claim');
+  assert.deepEqual(next.lastDiscard, { seat: 0, tile });
+  assert.equal(game.players[0].hand.length, 14);  // 不可变
+});
+
+test('applyPong melds the tile, removes it from discarder pile, passes turn', () => {
+  let game = createInitialGame({ seed: 1234 });
+  const tile = { suit: 'wan', rank: 5 };
+  game.players[0].discards = [tile];
+  game.players[2].hand = [tile, tile, { suit: 'tong', rank: 1 }];
+  game = { ...game, lastDiscard: { seat: 0, tile } };
+
+  const next = applyPong(game, 2, tile, 0);
+
+  assert.equal(next.players[2].melds.length, 1);
+  assert.equal(next.players[2].melds[0].type, 'pong');
+  assert.equal(next.players[2].hand.length, 1);
+  assert.equal(next.players[0].discards.length, 0);
+  assert.equal(next.currentPlayer, 2);
+  assert.equal(next.phase, 'awaiting-discard');
+  assert.equal(next.lastDiscard, null);
+});
+
+test('applyChi melds a sequence from the 上家 discard', () => {
+  let game = createInitialGame({ seed: 1234 });
+  const claimed = { suit: 'wan', rank: 5 };
+  game.players[0].discards = [claimed];
+  game.players[3].hand = [{ suit: 'wan', rank: 3 }, { suit: 'wan', rank: 4 }, { suit: 'tong', rank: 1 }];
+  game = { ...game, lastDiscard: { seat: 0, tile: claimed } };
+
+  const next = applyChi(game, 3, [{ suit: 'wan', rank: 3 }, { suit: 'wan', rank: 4 }], claimed, 0);
+
+  assert.equal(next.players[3].melds[0].type, 'chi');
+  assert.equal(next.players[3].melds[0].tiles.length, 3);
+  assert.equal(next.players[3].hand.length, 1);
+  assert.equal(next.currentPlayer, 3);
+  assert.equal(next.phase, 'awaiting-discard');
+});
+
+test('applyKong from discard draws a replacement and flags afterKong', () => {
+  let game = createInitialGame({ seed: 1234 });
+  const tile = { suit: 'wan', rank: 5 };
+  game.players[0].discards = [tile];
+  game.players[2].hand = [tile, tile, tile, { suit: 'tong', rank: 1 }];
+  game = { ...game, lastDiscard: { seat: 0, tile } };
+  const wallTop = game.wall[0];
+
+  const next = applyKong(game, 2, tile, 0, 'kong');
+
+  assert.equal(next.players[2].melds[0].type, 'kong');
+  assert.equal(next.players[2].melds[0].tiles.length, 4);
+  assert.equal(next.players[0].discards.length, 0);
+  assert.equal(next.lastDraw.afterKong, true);
+  assert.ok(next.players[2].hand.some((t) => tileKey(t) === tileKey(wallTop)));
+  assert.equal(next.phase, 'awaiting-discard');
+});
+
+test('applyWin and markDraw set hand-over result', () => {
+  const game = createInitialGame({ seed: 1234 });
+  const won = applyWin(game, 1, { winType: 'self-draw', tile: { suit: 'wan', rank: 1 }, loser: null, afterKong: false, pattern: '自摸' });
+  assert.equal(won.phase, 'hand-over');
+  assert.equal(won.result.winner, 1);
+  assert.equal(won.result.pattern, '自摸');
+
+  const drawn = markDraw(game);
+  assert.equal(drawn.phase, 'hand-over');
+  assert.equal(drawn.result.type, 'draw');
 });
