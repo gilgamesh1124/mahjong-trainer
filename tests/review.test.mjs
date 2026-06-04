@@ -3,66 +3,57 @@ import test from 'node:test';
 
 import { recordDecision, summarizeReview } from '../src/core/review.js';
 
-function tile(suit, rank) {
-  return { suit, rank };
+function makeRecommendation({ bestSuit, bestRank, shanten = 1, ukeireCount = 8 } = {}) {
+  const best = { discard: { suit: bestSuit, rank: bestRank }, shanten, ukeireCount, explanation: `打${bestRank}${bestSuit}后还差${shanten}向。` };
+  return { id: 'recommend-test', best, choices: [best] };
 }
 
 test('recordDecision stores recommendation snapshot', () => {
-  const records = [];
-  const result = recordDecision(records, {
+  const recommendation = makeRecommendation({ bestSuit: 'wan', bestRank: 1 });
+  const records = recordDecision([], {
     turn: 1,
-    chosenDiscard: tile('tong', 1),
-    recommendation: {
-      best: {
-        discard: tile('wan', 9),
-        score: 32,
-        explanation: '建议打9万。',
-      },
-      choices: [],
-    },
+    chosenDiscard: { suit: 'wan', rank: 1 },
+    recommendation,
   });
 
-  assert.equal(result.length, 1);
-  assert.notEqual(result, records);
-  assert.deepEqual(records, []);
-  assert.equal(result[0].followedBest, false);
-  assert.equal(result[0].bestExplanation, '建议打9万。');
+  assert.equal(records.length, 1);
+  assert.deepEqual(records[0].chosenDiscard, { suit: 'wan', rank: 1 });
+  assert.equal(records[0].followedBest, true);
+  assert.equal(records[0].recommendationId, 'recommend-test');
+  assert.equal(records[0].bestShanten, 1);
+  assert.equal(records[0].bestUkeire, 8);
 });
 
 test('recordDecision does not mutate original records', () => {
-  const records = [];
-  const next = recordDecision(records, {
+  const original = [];
+  const recommendation = makeRecommendation({ bestSuit: 'wan', bestRank: 1 });
+  recordDecision(original, {
     turn: 1,
-    chosenDiscard: tile('tong', 1),
-    recommendation: {
-      best: {
-        discard: tile('wan', 9),
-        score: 32,
-        explanation: '建议打9万。',
-      },
-      choices: [],
-    },
+    chosenDiscard: { suit: 'wan', rank: 1 },
+    recommendation,
   });
-
-  assert.equal(records.length, 0);
-  assert.equal(next.length, 1);
+  assert.equal(original.length, 0);
 });
 
-test('summarizeReview highlights ignored recommendations', () => {
-  const summary = summarizeReview([
-    {
-      turn: 1,
-      chosenLabel: '1筒',
-      bestLabel: '9万',
-      followedBest: false,
-      bestExplanation: '建议打9万。',
-    },
-  ]);
+test('summarizeReview highlights decisions where shanten got worse', () => {
+  // Best was shanten=1, player chose shanten=2 (worse)
+  const bestRec = makeRecommendation({ bestSuit: 'wan', bestRank: 1, shanten: 1, ukeireCount: 8 });
+  const worseChoice = { discard: { suit: 'tiao', rank: 9 }, shanten: 2, ukeireCount: 3, explanation: '差2向' };
+  const recommendation = {
+    id: 'recommend-test',
+    best: bestRec.best,
+    choices: [bestRec.best, worseChoice],
+  };
 
+  const records = recordDecision([], {
+    turn: 1,
+    chosenDiscard: { suit: 'tiao', rank: 9 },
+    recommendation,
+  });
+
+  const summary = summarizeReview(records);
   assert.equal(summary.totalDecisions, 1);
   assert.equal(summary.followedBestCount, 0);
   assert.equal(summary.keyMoments.length, 1);
-  assert.equal(summary.keyMoments[0].includes('第1巡'), true);
-  assert.equal(summary.keyMoments[0].includes('你打了1筒'), true);
-  assert.equal(summary.keyMoments[0].includes('系统建议打9万'), true);
+  assert.ok(summary.keyMoments[0].includes('向听数增加'));
 });
