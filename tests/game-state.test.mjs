@@ -88,6 +88,9 @@ test('applyPong melds the tile, removes it from discarder pile, passes turn', ()
   assert.equal(next.currentPlayer, 2);
   assert.equal(next.phase, 'awaiting-discard');
   assert.equal(next.lastDiscard, null);
+  // applyPong 不可变：输入 game 的手牌/弃牌未被改动
+  assert.equal(game.players[2].hand.length, 3);
+  assert.equal(game.players[0].discards.length, 1);
 });
 
 test('applyChi melds a sequence from the 上家 discard', () => {
@@ -122,6 +125,43 @@ test('applyKong from discard draws a replacement and flags afterKong', () => {
   assert.equal(next.lastDraw.afterKong, true);
   assert.ok(next.players[2].hand.some((t) => tileKey(t) === tileKey(wallTop)));
   assert.equal(next.phase, 'awaiting-discard');
+});
+
+test('applyKong added-kong upgrades an existing pong and keeps its from-seat', () => {
+  let game = createInitialGame({ seed: 1234 });
+  const tile = { suit: 'tong', rank: 3 };
+  game.players[1].melds = [{ type: 'pong', tiles: [tile, tile, tile], from: 0 }];
+  game.players[1].hand = [tile, { suit: 'wan', rank: 9 }];
+
+  const next = applyKong(game, 1, tile, null, 'added-kong');
+
+  assert.equal(next.players[1].melds.length, 1);
+  assert.equal(next.players[1].melds[0].type, 'added-kong');
+  assert.equal(next.players[1].melds[0].tiles.length, 4);
+  assert.equal(next.players[1].melds[0].from, 0); // 保留原碰来源
+  assert.equal(next.lastDraw.afterKong, true);
+  assert.equal(next.players[1].hand.length, 2); // 收走 1 张 + 摸补牌 1 张
+});
+
+test('applyKong concealed-kong removes four from hand', () => {
+  let game = createInitialGame({ seed: 1234 });
+  const tile = { suit: 'tiao', rank: 7 };
+  game.players[1].hand = [tile, tile, tile, tile, { suit: 'wan', rank: 2 }];
+
+  const next = applyKong(game, 1, tile, null, 'concealed-kong');
+
+  assert.equal(next.players[1].melds[0].type, 'concealed-kong');
+  assert.equal(next.players[1].melds[0].from, null);
+  assert.equal(next.lastDraw.afterKong, true);
+  assert.equal(next.players[1].hand.length, 2); // 4 张入暗杠 + 摸补牌 1 张
+});
+
+test('applyKong throws on an unknown kind', () => {
+  const game = createInitialGame({ seed: 1234 });
+  assert.throws(
+    () => applyKong(game, 0, { suit: 'wan', rank: 1 }, null, 'bogus'),
+    /Unknown kong kind/,
+  );
 });
 
 test('applyWin and markDraw set hand-over result', () => {

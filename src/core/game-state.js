@@ -122,6 +122,7 @@ export function applyKong(game, seat, tile, fromSeat, kind) {
   let melds = [...players[seat].melds];
 
   if (kind === 'kong') {
+    // 明杠：手里 3 张 + 弃牌区那张 = 4 张
     hand = removeOneTile(hand, tile);
     hand = removeOneTile(hand, tile);
     hand = removeOneTile(hand, tile);
@@ -137,6 +138,8 @@ export function applyKong(game, seat, tile, fromSeat, kind) {
         ? { type: 'added-kong', tiles: [tile, tile, tile, tile], from: meld.from }
         : meld
     ));
+  } else {
+    throw new Error(`Unknown kong kind: ${kind}`);
   }
 
   players[seat] = { ...players[seat], hand, melds };
