@@ -91,6 +91,49 @@ test('a pong claim redirects the turn to the claimer and melds the tile', async 
   assert.ok(!result.players[0].discards.some((d) => tileKey(d) === tileKey(claimed)));
 });
 
+test('a self kong with an empty wall ends the hand in a draw (no replacement)', async () => {
+  const tile = t('wan', 1);
+  const game = makeGame({ currentPlayer: 0, wall: [] });
+  game.players[0].hand = [tile, tile, tile, tile, ...handOf([
+    ['tong', 2], ['tong', 5], ['tong', 8], ['tiao', 1], ['tiao', 4],
+    ['tiao', 7], ['wan', 4], ['wan', 7], ['tong', 1], ['tong', 3],
+  ])];
+  const agents = [scripted({ actions: [{ type: 'concealed-kong', tile }] }), passAgent, passAgent, passAgent];
+
+  const result = await runHand(game, agents, { delay: noDelay });
+
+  assert.equal(result.phase, 'hand-over');
+  assert.equal(result.result.type, 'draw');
+});
+
+test('a discard win (点炮) ends the hand with loser and pattern', async () => {
+  const claimed = t('tiao', 1);
+  const game = makeGame({ currentPlayer: 0, wall: [t('tong', 1)] });
+  game.players[0].hand = [claimed, ...handOf([
+    ['tong', 4], ['tong', 5], ['tong', 6], ['tong', 7], ['tong', 8], ['tong', 9],
+    ['wan', 2], ['wan', 3], ['wan', 4], ['tiao', 5], ['tiao', 6], ['tiao', 7], ['tong', 2],
+  ])];
+  // seat 2 听牌：万1-9 + 筒1-3 + 条1，单钓条1 成对
+  game.players[2].hand = handOf([
+    ['wan', 1], ['wan', 2], ['wan', 3], ['wan', 4], ['wan', 5], ['wan', 6],
+    ['wan', 7], ['wan', 8], ['wan', 9], ['tong', 1], ['tong', 2], ['tong', 3], ['tiao', 1],
+  ]);
+  const seat0 = scripted({ actions: [{ type: 'discard', tile: claimed }] });
+  const seat2 = {
+    chooseAction: async () => ({ type: 'discard', tile: t('wan', 1) }),
+    chooseClaim: async (g, s, options) => options.find((o) => o.type === 'win') ?? { type: 'pass' },
+  };
+  const agents = [seat0, passAgent, seat2, passAgent];
+
+  const result = await runHand(game, agents, { delay: noDelay });
+
+  assert.equal(result.phase, 'hand-over');
+  assert.equal(result.result.winner, 2);
+  assert.equal(result.result.winType, 'discard');
+  assert.equal(result.result.loser, 0);
+  assert.equal(typeof result.result.pattern, 'string');
+});
+
 test('an already-aborted signal returns immediately', async () => {
   const controller = new AbortController();
   controller.abort();

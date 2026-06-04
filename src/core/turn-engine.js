@@ -15,7 +15,6 @@ function findRobKong(game, kongSeat, tile) {
   let found = null;
   for (let step = 1; step <= 3; step += 1) {
     const seat = (kongSeat + 3 * step) % 4;
-    if (seat === kongSeat) continue;
     if (canWinOnTile(game.players[seat].hand, game.players[seat].melds, tile)) { found = seat; break; }
   }
   return found;
@@ -51,6 +50,12 @@ export async function runHand(game, agents, { delay = () => Promise.resolve(), o
           continue;
         }
       }
+      if (game.wall.length === 0) {
+        // 牌墙已空，杠无补牌可摸 → 流局
+        game = markDraw(game);
+        onUpdate(game);
+        continue;
+      }
       game = applyKong(game, seat, action.tile, null, action.type);
       onUpdate(game);
       await delay();
@@ -67,7 +72,6 @@ export async function runHand(game, agents, { delay = () => Promise.resolve(), o
     const intents = [];
     for (let step = 1; step <= 3; step += 1) {
       const other = (seat + 3 * step) % 4;
-      if (other === seat) continue;
       const options = claimOptionsFor(other, game.players[other], game.lastDiscard.tile, seat);
       if (options.length === 0) continue;
       const intent = await agents[other].chooseClaim(game, other, options);
@@ -76,6 +80,7 @@ export async function runHand(game, agents, { delay = () => Promise.resolve(), o
     }
 
     const winner = resolveClaims(intents, seat);
+    if (aborted()) return game;
 
     if (!winner) {
       const next = NEXT(seat);
@@ -93,7 +98,11 @@ export async function runHand(game, agents, { delay = () => Promise.resolve(), o
     } else if (winner.claim.type === 'pong') {
       game = applyPong(game, winner.seat, claimedTile, seat);
     } else if (winner.claim.type === 'kong') {
-      game = applyKong(game, winner.seat, claimedTile, seat, 'kong');
+      if (game.wall.length === 0) {
+        game = markDraw(game); // 牌墙已空，杠无补牌可摸 → 流局
+      } else {
+        game = applyKong(game, winner.seat, claimedTile, seat, 'kong');
+      }
     } else if (winner.claim.type === 'chi') {
       game = applyChi(game, winner.seat, winner.claim.tiles, claimedTile, seat);
     }
