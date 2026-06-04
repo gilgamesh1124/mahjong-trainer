@@ -1,4 +1,4 @@
-export const SUITS = ['wan', 'tiao', 'tong'];
+export const SUITS = ['tong', 'wan', 'tiao'];
 
 export const SUIT_LABELS = {
   wan: '万',

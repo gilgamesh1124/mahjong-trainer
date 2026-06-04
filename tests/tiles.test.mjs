@@ -59,12 +59,12 @@ test('sortTiles orders by suit then rank', () => {
 
   assert.notEqual(sorted, tiles);
   assert.deepEqual(sorted.map(tileKey), [
+    'tong-1',
+    'tong-9',
     'wan-1',
     'wan-3',
     'tiao-1',
     'tiao-9',
-    'tong-1',
-    'tong-9',
   ]);
   assert.deepEqual(tiles.map(tileKey), [
     'tong-9',

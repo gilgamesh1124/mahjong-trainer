@@ -1,5 +1,5 @@
 import { createSeededRandom, shuffle } from './random.js';
-import { createTileSet, removeOneTile, tileKey } from './tiles.js';
+import { createTileSet, removeOneTile, sortTiles, tileKey } from './tiles.js';
 
 function clonePlayers(players) {
   return players.map((player) => ({
@@ -23,10 +23,10 @@ export function createInitialGame({ seed = Date.now() } = {}) {
   let cursor = 0;
 
   const players = [
-    createPlayer(originalWall.slice(cursor, cursor + 14)),
-    createPlayer(originalWall.slice(cursor + 14, cursor + 27)),
-    createPlayer(originalWall.slice(cursor + 27, cursor + 40)),
-    createPlayer(originalWall.slice(cursor + 40, cursor + 53)),
+    createPlayer(sortTiles(originalWall.slice(cursor, cursor + 14))),
+    createPlayer(sortTiles(originalWall.slice(cursor + 14, cursor + 27))),
+    createPlayer(sortTiles(originalWall.slice(cursor + 27, cursor + 40))),
+    createPlayer(sortTiles(originalWall.slice(cursor + 40, cursor + 53))),
   ];
   cursor = 53;
 
@@ -50,7 +50,7 @@ export function drawTile(game, playerIndex) {
   const players = clonePlayers(game.players);
   players[playerIndex] = {
     ...players[playerIndex],
-    hand: [...players[playerIndex].hand, tile],
+    hand: sortTiles([...players[playerIndex].hand, tile]),
   };
 
   return {

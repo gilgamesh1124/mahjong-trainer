@@ -6,6 +6,7 @@ import {
   discardTile,
   drawTile,
 } from '../src/core/game-state.js';
+import { tileKey } from '../src/core/tiles.js';
 
 test('createInitialGame deals the starting hands and sets turn state', () => {
   const game = createInitialGame({ seed: 1234 });
@@ -30,7 +31,7 @@ test('drawTile consumes the next wall tile without mutating the input game', () 
   const nextGame = drawTile(game, 1);
 
   assert.notEqual(nextGame, game);
-  assert.deepEqual(nextGame.players[1].hand.at(-1), drawnTile);
+  assert.ok(nextGame.players[1].hand.some((t) => tileKey(t) === tileKey(drawnTile)));
   assert.equal(nextGame.wall.length, originalWallLength - 1);
   assert.deepEqual(nextGame.wall, game.wall.slice(1));
   assert.equal(game.wall.length, 55);
