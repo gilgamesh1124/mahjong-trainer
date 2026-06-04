@@ -6,6 +6,7 @@ import {
   drawTile,
   passClaim,
 } from './core/game-state.js';
+import { chooseComputerDiscard } from './core/computer-strategy.js';
 import { recommendOperation } from './core/operation-advice.js';
 import { recommendDiscards } from './core/recommendation.js';
 import {
@@ -107,7 +108,13 @@ function drawIfPossible(playerIndex) {
 }
 
 function discardFirstTile(playerIndex) {
-  const [tile] = game.players[playerIndex].hand;
+  const tile = playerIndex === 0
+    ? game.players[playerIndex].hand[0]
+    : chooseComputerDiscard({
+      hand: game.players[playerIndex].hand,
+      visibleTiles: visibleTiles(),
+      openMeldCount: game.players[playerIndex].melds.length,
+    }).discard;
 
   if (!tile) {
     return;
