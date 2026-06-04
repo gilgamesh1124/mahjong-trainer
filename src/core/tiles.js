@@ -6,6 +6,12 @@ export const SUIT_LABELS = {
   tong: '筒',
 };
 
+const GLYPH_BASES = {
+  wan: 0x1F007,
+  tiao: 0x1F010,
+  tong: 0x1F019,
+};
+
 const SUIT_ORDER = new Map(SUITS.map((suit, index) => [suit, index]));
 
 export function createTileSet() {
@@ -28,6 +34,12 @@ export function tileKey(tile) {
 
 export function tileLabel(tile) {
   return `${tile.rank}${SUIT_LABELS[tile.suit] ?? tile.suit}`;
+}
+
+export function tileGlyph(tile) {
+  const base = GLYPH_BASES[tile.suit];
+  if (base === undefined) return tileLabel(tile);
+  return String.fromCodePoint(base + tile.rank - 1);
 }
 
 export function sortTiles(tiles) {
