@@ -4,27 +4,25 @@ const SUITED_TILES = ['wan', 'tiao', 'tong'].flatMap((suit) =>
   Array.from({ length: 9 }, (_, index) => ({ suit, rank: index + 1 })),
 );
 
-export function isWinningHand(hand) {
-  if (hand.length !== 14) {
-    return false;
-  }
+// 通用胡牌判定：concealed 必须形成 (4 - meldCount) 套 + 1 对
+export function isWinningTiles(concealed, meldCount = 0) {
+  const neededSets = 4 - meldCount;
+  if (neededSets < 0) return false;
+  if (concealed.length !== neededSets * 3 + 2) return false;
 
-  const counts = countTiles(hand);
-
+  const counts = countTiles(concealed);
   for (const [key, count] of counts) {
-    if (count < 2) {
-      continue;
-    }
-
-    const remainingCounts = new Map(counts);
-    remainingCounts.set(key, count - 2);
-
-    if (canFormSets(remainingCounts)) {
-      return true;
-    }
+    if (count < 2) continue;
+    const remaining = new Map(counts);
+    remaining.set(key, count - 2);
+    if (canFormSets(remaining)) return true;
   }
-
   return false;
+}
+
+export function isWinningHand(hand) {
+  if (hand.length !== 14) return false;
+  return isWinningTiles(hand, 0);
 }
 
 export function isTenpai(hand) {
@@ -199,24 +197,28 @@ function shantenMelds(counts, idx, mentsu, taatsu) {
   return best;
 }
 
-export function shantenNumber(hand) {
+export function shantenWithMelds(hand, meldCount = 0) {
   const counts = tilesToCounts27(hand);
   let best = 8;
 
   for (let i = 0; i < 27; i++) {
     if (counts[i] >= 2) {
       counts[i] -= 2;
-      best = Math.min(best, shantenMelds(counts, 0, 0, 0) - 1);
+      best = Math.min(best, shantenMelds(counts, 0, meldCount, 0) - 1);
       counts[i] += 2;
     }
   }
 
-  best = Math.min(best, shantenMelds(counts, 0, 0, 0));
+  best = Math.min(best, shantenMelds(counts, 0, meldCount, 0));
   return best;
 }
 
-export function calcUkeire(hand13, visibleCounts) {
-  const currentShanten = shantenNumber(hand13);
+export function shantenNumber(hand) {
+  return shantenWithMelds(hand, 0);
+}
+
+export function calcUkeire(hand13, visibleCounts, meldCount = 0) {
+  const currentShanten = shantenWithMelds(hand13, meldCount);
   const useful = [];
   let totalCount = 0;
 
@@ -230,7 +232,7 @@ export function calcUkeire(hand13, visibleCounts) {
 
       if (remaining <= 0) continue;
 
-      if (shantenNumber([...hand13, tile]) < currentShanten) {
+      if (shantenWithMelds([...hand13, tile], meldCount) < currentShanten) {
         useful.push({ tile, remaining });
         totalCount += remaining;
       }

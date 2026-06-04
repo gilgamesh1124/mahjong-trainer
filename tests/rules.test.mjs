@@ -7,6 +7,8 @@ import {
   isWinningHand,
   shantenNumber,
   calcUkeire,
+  isWinningTiles,
+  shantenWithMelds,
 } from '../src/core/rules.js';
 
 function tile(suit, rank) {
@@ -188,4 +190,29 @@ test('calcUkeire returns tiles and count for a tenpai hand', () => {
   const result = calcUkeire(hand, visible);
   assert.ok(result.tiles.some(u => u.tile.suit === 'tiao' && u.tile.rank === 1));
   assert.ok(result.totalCount > 0);
+});
+
+test('isWinningTiles accepts a complete hand with one exposed meld', () => {
+  // 1 个副露（meldCount=1）→ 需要 concealed 形成 3 套 + 1 对 = 11 张
+  const concealed = tiles([
+    ['wan', 1], ['wan', 2], ['wan', 3],
+    ['wan', 7], ['wan', 8], ['wan', 9],
+    ['tong', 4], ['tong', 5], ['tong', 6],
+    ['tong', 9], ['tong', 9],
+  ]);
+  assert.equal(isWinningTiles(concealed, 1), true);
+});
+
+test('isWinningTiles rejects wrong tile count for meld count', () => {
+  const concealed = tiles([['wan', 1], ['wan', 2], ['wan', 3]]);
+  assert.equal(isWinningTiles(concealed, 1), false);
+});
+
+test('shantenWithMelds matches shantenNumber when meldCount is 0', () => {
+  const hand = tiles([
+    ['wan', 1], ['wan', 2], ['wan', 3], ['wan', 4], ['wan', 5],
+    ['wan', 6], ['wan', 7], ['wan', 8], ['wan', 9],
+    ['tong', 1], ['tong', 2], ['tong', 3], ['tiao', 1],
+  ]);
+  assert.equal(shantenWithMelds(hand, 0), shantenNumber(hand));
 });
