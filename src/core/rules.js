@@ -138,3 +138,104 @@ function restoreSequence(counts, tile) {
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
 }
+
+// --- Shanten / Ukeire ---
+
+const SUIT_IDX = { tong: 0, wan: 1, tiao: 2 };
+
+function tilesToCounts27(tiles) {
+  const counts = new Array(27).fill(0);
+  for (const tile of tiles) {
+    counts[SUIT_IDX[tile.suit] * 9 + (tile.rank - 1)]++;
+  }
+  return counts;
+}
+
+function shantenMelds(counts, idx, mentsu, taatsu) {
+  while (idx < 27 && counts[idx] === 0) idx++;
+
+  if (idx === 27) {
+    return 8 - 2 * mentsu - Math.min(taatsu, 4 - mentsu);
+  }
+
+  const rank = idx % 9;
+  let best = 8 - 2 * mentsu - Math.min(taatsu, 4 - mentsu);
+
+  if (counts[idx] >= 3) {
+    counts[idx] -= 3;
+    best = Math.min(best, shantenMelds(counts, idx, mentsu + 1, taatsu));
+    counts[idx] += 3;
+  }
+
+  if (rank <= 6 && counts[idx + 1] >= 1 && counts[idx + 2] >= 1) {
+    counts[idx]--; counts[idx + 1]--; counts[idx + 2]--;
+    best = Math.min(best, shantenMelds(counts, idx, mentsu + 1, taatsu));
+    counts[idx]++; counts[idx + 1]++; counts[idx + 2]++;
+  }
+
+  if (counts[idx] >= 2) {
+    counts[idx] -= 2;
+    best = Math.min(best, shantenMelds(counts, idx, mentsu, taatsu + 1));
+    counts[idx] += 2;
+  }
+
+  if (rank <= 7 && counts[idx + 1] >= 1) {
+    counts[idx]--; counts[idx + 1]--;
+    best = Math.min(best, shantenMelds(counts, idx, mentsu, taatsu + 1));
+    counts[idx]++; counts[idx + 1]++;
+  }
+
+  if (rank <= 6 && counts[idx + 2] >= 1) {
+    counts[idx]--; counts[idx + 2]--;
+    best = Math.min(best, shantenMelds(counts, idx, mentsu, taatsu + 1));
+    counts[idx]++; counts[idx + 2]++;
+  }
+
+  const c = counts[idx];
+  counts[idx] = 0;
+  best = Math.min(best, shantenMelds(counts, idx + 1, mentsu, taatsu));
+  counts[idx] = c;
+
+  return best;
+}
+
+export function shantenNumber(hand) {
+  const counts = tilesToCounts27(hand);
+  let best = 8;
+
+  for (let i = 0; i < 27; i++) {
+    if (counts[i] >= 2) {
+      counts[i] -= 2;
+      best = Math.min(best, shantenMelds(counts, 0, 0, 0) - 1);
+      counts[i] += 2;
+    }
+  }
+
+  best = Math.min(best, shantenMelds(counts, 0, 0, 0));
+  return best;
+}
+
+export function calcUkeire(hand13, visibleCounts) {
+  const currentShanten = shantenNumber(hand13);
+  const useful = [];
+  let totalCount = 0;
+
+  for (const suit of Object.keys(SUIT_IDX)) {
+    for (let rank = 1; rank <= 9; rank++) {
+      const tile = { suit, rank };
+      const key = `${suit}-${rank}`;
+      const seenCount = visibleCounts.get(key) ?? 0;
+      const inHand = hand13.filter(t => `${t.suit}-${t.rank}` === key).length;
+      const remaining = 4 - seenCount - inHand;
+
+      if (remaining <= 0) continue;
+
+      if (shantenNumber([...hand13, tile]) < currentShanten) {
+        useful.push({ tile, remaining });
+        totalCount += remaining;
+      }
+    }
+  }
+
+  return { tiles: useful, totalCount };
+}
