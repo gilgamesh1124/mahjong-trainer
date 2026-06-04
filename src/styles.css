@@ -157,7 +157,7 @@ button {
   border-radius: 5px;
   background: #f3ebd9;
   color: #193326;
-  font-size: 12px;
+  font-size: 18px;
   font-weight: 700;
 }
 
@@ -180,7 +180,7 @@ button {
   background: linear-gradient(180deg, #fffaf0, #eadfc8);
   color: #142e22;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 48px;
   font-weight: 800;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.22);
 }
@@ -378,7 +378,7 @@ button {
 
   .tile {
     min-height: 68px;
-    font-size: 17px;
+    font-size: 44px;
   }
 
   .advice-panel {
