@@ -189,3 +189,46 @@ test('calcUkeire returns tiles and count for a tenpai hand', () => {
   assert.ok(result.tiles.some(u => u.tile.suit === 'tiao' && u.tile.rank === 1));
   assert.ok(result.totalCount > 0);
 });
+
+test('shantenNumber accounts for an exposed meld already being complete', () => {
+  const concealedHand = tiles([
+    ['wan', 1],
+    ['wan', 2],
+    ['wan', 3],
+    ['tong', 1],
+    ['tong', 2],
+    ['tong', 3],
+    ['tiao', 1],
+    ['tiao', 2],
+    ['wan', 9],
+    ['wan', 9],
+  ]);
+
+  assert.equal(shantenNumber(concealedHand, 1), 0);
+});
+
+test('calcUkeire accounts for exposed melds when counting useful tiles', () => {
+  const concealedHand = tiles([
+    ['wan', 1],
+    ['wan', 2],
+    ['wan', 3],
+    ['tong', 1],
+    ['tong', 2],
+    ['tong', 3],
+    ['tiao', 1],
+    ['tiao', 2],
+    ['wan', 9],
+    ['wan', 9],
+  ]);
+  const visibleCounts = new Map([
+    ['tiao-3', 1],
+  ]);
+
+  const result = calcUkeire(concealedHand, visibleCounts, 1);
+
+  assert.deepEqual(result.tiles, [{
+    tile: tile('tiao', 3),
+    remaining: 3,
+  }]);
+  assert.equal(result.totalCount, 3);
+});

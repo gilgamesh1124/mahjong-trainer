@@ -199,24 +199,24 @@ function shantenMelds(counts, idx, mentsu, taatsu) {
   return best;
 }
 
-export function shantenNumber(hand) {
+export function shantenNumber(hand, openMeldCount = 0) {
   const counts = tilesToCounts27(hand);
   let best = 8;
 
   for (let i = 0; i < 27; i++) {
     if (counts[i] >= 2) {
       counts[i] -= 2;
-      best = Math.min(best, shantenMelds(counts, 0, 0, 0) - 1);
+      best = Math.min(best, shantenMelds(counts, 0, openMeldCount, 0) - 1);
       counts[i] += 2;
     }
   }
 
-  best = Math.min(best, shantenMelds(counts, 0, 0, 0));
+  best = Math.min(best, shantenMelds(counts, 0, openMeldCount, 0));
   return best;
 }
 
-export function calcUkeire(hand13, visibleCounts) {
-  const currentShanten = shantenNumber(hand13);
+export function calcUkeire(hand13, visibleCounts, openMeldCount = 0) {
+  const currentShanten = shantenNumber(hand13, openMeldCount);
   const useful = [];
   let totalCount = 0;
 
@@ -230,7 +230,7 @@ export function calcUkeire(hand13, visibleCounts) {
 
       if (remaining <= 0) continue;
 
-      if (shantenNumber([...hand13, tile]) < currentShanten) {
+      if (shantenNumber([...hand13, tile], openMeldCount) < currentShanten) {
         useful.push({ tile, remaining });
         totalCount += remaining;
       }

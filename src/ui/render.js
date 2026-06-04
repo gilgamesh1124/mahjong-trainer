@@ -114,16 +114,34 @@ function choicesList(recommendation) {
 
 function reviewBlock(reviewSummary) {
   if (!reviewSummary || reviewSummary.totalDecisions === 0) {
-    return '<p class="review-empty">本局还没有决策记录。</p>';
+    return '<p class="review-empty">本局还没有出牌决策记录。</p>';
   }
 
   const moments = reviewSummary.keyMoments?.slice(0, 3) ?? [];
   const momentItems = moments.length > 0
     ? moments.map((moment) => `<li>${escapeHtml(moment)}</li>`).join('')
-    : '<li>目前没有明显偏离推荐的选择。</li>';
+    : '<li>目前没有明显偏离出牌推荐的选择。</li>';
 
   return `
-    <p>已记录 ${escapeHtml(reviewSummary.totalDecisions)} 次决策，跟随推荐 ${escapeHtml(reviewSummary.followedBestCount)} 次。</p>
+    <p>已记录 ${escapeHtml(reviewSummary.totalDecisions)} 次出牌，跟随推荐 ${escapeHtml(reviewSummary.followedBestCount)} 次。</p>
+    <ul class="review-moments">
+      ${momentItems}
+    </ul>
+  `;
+}
+
+function operationReviewBlock(operationReviewSummary) {
+  if (!operationReviewSummary || operationReviewSummary.totalDecisions === 0) {
+    return '<p class="review-empty">本局还没有吃碰杠胡决策记录。</p>';
+  }
+
+  const moments = operationReviewSummary.keyMoments?.slice(0, 3) ?? [];
+  const momentItems = moments.length > 0
+    ? moments.map((moment) => `<li>${escapeHtml(moment)}</li>`).join('')
+    : '<li>目前吃碰杠胡选择都与建议一致。</li>';
+
+  return `
+    <p>已记录 ${escapeHtml(operationReviewSummary.totalDecisions)} 次操作，跟随建议 ${escapeHtml(operationReviewSummary.followedBestCount)} 次。</p>
     <ul class="review-moments">
       ${momentItems}
     </ul>
@@ -170,7 +188,48 @@ function playerResponse(game) {
   return game.pendingAction?.responses.find((response) => response.playerIndex === 0) ?? null;
 }
 
-function operationPanel(game, selfWinAvailable) {
+function actionText(choice) {
+  if (!choice) {
+    return '暂无';
+  }
+
+  const label = ACTION_LABELS[choice.action] ?? choice.action;
+  if (!choice.tiles || choice.tiles.length === 0 || choice.action === 'pass') {
+    return label;
+  }
+
+  return `${label} ${miniTiles(choice.tiles)}`;
+}
+
+function operationAdviceBlock(operationAdvice) {
+  if (!operationAdvice?.best) {
+    return '';
+  }
+
+  const choices = operationAdvice.choices
+    .slice(0, 4)
+    .map((choice) => `
+      <li>
+        <span>${actionText(choice)}</span>
+        <strong>${escapeHtml(choice.shanten < 0 ? '和牌' : `${choice.shanten} 向 / ${choice.ukeireCount} 张`)}</strong>
+      </li>
+    `).join('');
+
+  return `
+    <div class="operation-advice">
+      <div class="operation-best">
+        <span>建议操作</span>
+        <strong>${actionText(operationAdvice.best)}</strong>
+      </div>
+      <p>${escapeHtml(operationAdvice.best.explanation)}</p>
+      <ol class="operation-choice-list">
+        ${choices}
+      </ol>
+    </div>
+  `;
+}
+
+function operationPanel(game, selfWinAvailable, operationAdvice) {
   const response = playerResponse(game);
   const buttons = [];
 
@@ -204,13 +263,14 @@ function operationPanel(game, selfWinAvailable) {
     buttons.push('<button class="action-button muted" type="button" data-action="pass">过</button>');
   }
 
-  if (buttons.length === 0) {
+  if (buttons.length === 0 && !operationAdvice?.best) {
     return '';
   }
 
   return `
     <section class="operation-panel" aria-label="可操作">
       <h2>可操作</h2>
+      ${operationAdviceBlock(operationAdvice)}
       <div class="operation-buttons">
         ${buttons.join('')}
       </div>
@@ -218,7 +278,14 @@ function operationPanel(game, selfWinAvailable) {
   `;
 }
 
-export function renderApp({ game, recommendation, reviewSummary, selfWinAvailable = false }) {
+export function renderApp({
+  game,
+  recommendation,
+  operationAdvice = null,
+  reviewSummary,
+  operationReviewSummary,
+  selfWinAvailable = false,
+}) {
   const best = recommendation?.best ?? null;
   const bestDiscardLabel = best ? tileGlyph(best.discard) : '暂无';
   const explanation = best?.explanation ?? '当前不是标准摸牌后的 14 张手牌，先完成吃碰杠胡或出牌操作。';
@@ -246,7 +313,7 @@ export function renderApp({ game, recommendation, reviewSummary, selfWinAvailabl
 
     <aside class="advice-panel" aria-label="盘中提醒">
       <h1>盘中提醒</h1>
-      ${operationPanel(game, selfWinAvailable)}
+      ${operationPanel(game, selfWinAvailable, operationAdvice)}
       <div class="best-discard">
         <span>推荐打</span>
         <strong>${bestDiscardLabel}</strong>
@@ -256,9 +323,13 @@ export function renderApp({ game, recommendation, reviewSummary, selfWinAvailabl
       <ol class="choice-list">
         ${choicesList(recommendation)}
       </ol>
-      <h2>复盘</h2>
+      <h2>出牌复盘</h2>
       <div class="review-summary">
         ${reviewBlock(reviewSummary)}
+      </div>
+      <h2>操作复盘</h2>
+      <div class="review-summary">
+        ${operationReviewBlock(operationReviewSummary)}
       </div>
       <button class="new-hand-button" type="button">新开一局</button>
     </aside>

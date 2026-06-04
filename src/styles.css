@@ -272,6 +272,7 @@ button {
 .operation-panel {
   display: grid;
   gap: 10px;
+  overflow: hidden;
   border: 1px solid rgba(255, 226, 122, 0.38);
   border-radius: 8px;
   background: #262f27;
@@ -282,6 +283,76 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.operation-advice {
+  display: grid;
+  gap: 8px;
+}
+
+.operation-advice p {
+  border-left: 3px solid #ffe27a;
+  border-radius: 6px;
+  background: #202a27;
+  color: #eef6f1;
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 8px 10px;
+}
+
+.operation-best {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(255, 226, 122, 0.28);
+  border-radius: 8px;
+  background: #222d24;
+  padding: 10px;
+}
+
+.operation-best span {
+  color: #cddbd2;
+  font-size: 12px;
+}
+
+.operation-best strong {
+  color: #ffe27a;
+  font-size: 20px;
+}
+
+.operation-choice-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.operation-choice-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px;
+  color: #dce8e1;
+  font-size: 13px;
+}
+
+.operation-choice-list span {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.operation-choice-list strong {
+  color: #ffe27a;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.operation-choice-list .mini-tile {
+  min-width: 18px;
+  height: 22px;
+  font-size: 14px;
 }
 
 .action-button {

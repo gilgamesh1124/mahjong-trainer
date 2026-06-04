@@ -6,8 +6,14 @@ import {
   drawTile,
   passClaim,
 } from './core/game-state.js';
+import { recommendOperation } from './core/operation-advice.js';
 import { recommendDiscards } from './core/recommendation.js';
-import { recordDecision, summarizeReview } from './core/review.js';
+import {
+  recordDecision,
+  recordOperationDecision,
+  summarizeOperationReview,
+  summarizeReview,
+} from './core/review.js';
 import { isWinningHand } from './core/rules.js';
 import { renderApp } from './ui/render.js';
 
@@ -15,7 +21,9 @@ const app = document.querySelector('#app');
 
 let game = createInitialGame();
 let reviewRecords = [];
+let operationReviewRecords = [];
 let currentRecommendation = recommendCurrentHand();
+let currentOperationAdvice = recommendCurrentOperation();
 
 function visibleTiles() {
   return game.players.flatMap((player) => [
@@ -42,6 +50,22 @@ function recommendCurrentHand() {
 
 function refreshRecommendation() {
   currentRecommendation = recommendCurrentHand();
+  currentOperationAdvice = recommendCurrentOperation();
+}
+
+function recommendCurrentOperation() {
+  if (
+    game.phase !== 'awaiting-claim'
+    || !game.pendingAction?.responses.some((response) => response.playerIndex === 0)
+  ) {
+    return null;
+  }
+
+  return recommendOperation({
+    game,
+    playerIndex: 0,
+    visibleTiles: visibleTiles(),
+  });
 }
 
 function canPlayerSelfWin() {
@@ -56,7 +80,9 @@ function render() {
   renderApp({
     game,
     recommendation: currentRecommendation,
+    operationAdvice: currentOperationAdvice,
     reviewSummary: summarizeReview(reviewRecords),
+    operationReviewSummary: summarizeOperationReview(operationReviewRecords),
     selfWinAvailable: canPlayerSelfWin(),
   });
 }
@@ -203,6 +229,7 @@ function handleClaim(action, chiIndex = 0) {
   }
 
   const tiles = action === 'chi' ? response.chiOptions[chiIndex] : [];
+  recordOperation(action, tiles);
 
   game = claimDiscard(game, 0, action, tiles);
 
@@ -215,6 +242,7 @@ function handleClaim(action, chiIndex = 0) {
 }
 
 function handlePass() {
+  recordOperation('pass', [game.pendingAction.tile]);
   game = passClaim(game, 0);
   continueUntilPlayerDecision();
   render();
@@ -225,9 +253,23 @@ function handleSelfWin() {
     return;
   }
 
+  recordOperation('hu', [game.players[0].hand.at(-1)].filter(Boolean));
   game = declareSelfWin(game, 0);
   refreshRecommendation();
   render();
+}
+
+function recordOperation(chosenAction, chosenTiles = []) {
+  if (!currentOperationAdvice) {
+    return;
+  }
+
+  operationReviewRecords = recordOperationDecision(operationReviewRecords, {
+    turn: operationReviewRecords.length + 1,
+    chosenAction,
+    chosenTiles,
+    advice: currentOperationAdvice,
+  });
 }
 
 function handlePlayerDiscard(discardIndex) {
@@ -260,6 +302,7 @@ function handlePlayerDiscard(discardIndex) {
 function startNewHand() {
   game = createInitialGame();
   reviewRecords = [];
+  operationReviewRecords = [];
   refreshRecommendation();
   render();
 }
