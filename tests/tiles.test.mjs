@@ -6,6 +6,7 @@ import {
   countTiles,
   removeOneTile,
   sortTiles,
+  tileGlyph,
   tileKey,
   tileLabel,
 } from '../src/core/tiles.js';
@@ -43,6 +44,12 @@ test('tileLabel returns Chinese suit labels', () => {
   assert.equal(tileLabel({ suit: 'wan', rank: 1 }), '1万');
   assert.equal(tileLabel({ suit: 'tiao', rank: 2 }), '2条');
   assert.equal(tileLabel({ suit: 'tong', rank: 3 }), '3筒');
+});
+
+test('tileGlyph returns Unicode mahjong glyphs', () => {
+  assert.equal(tileGlyph({ suit: 'wan',  rank: 1 }), '🀇');
+  assert.equal(tileGlyph({ suit: 'tiao', rank: 1 }), '🀐');
+  assert.equal(tileGlyph({ suit: 'tong', rank: 9 }), '🀡');
 });
 
 test('sortTiles orders by suit then rank', () => {
