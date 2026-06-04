@@ -1,4 +1,5 @@
-import { tileGlyph, tileLabel } from '../core/tiles.js';
+import { tileKey, tileLabel } from '../core/tiles.js';
+import { tileFaceSvg } from './tile-face.js';
 
 const app = document.querySelector('#app');
 
@@ -18,13 +19,15 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-function tileButton(tile, index) {
-  const glyph = tileGlyph(tile);
+function tileButton(tile, index, { recommended = false, drawn = false } = {}) {
   const label = escapeHtml(tileLabel(tile));
+  const classes = ['tile'];
+  if (recommended) classes.push('is-recommended');
+  if (drawn) classes.push('is-drawn');
 
   return `
-    <button class="tile" type="button" data-discard-index="${index}" aria-label="打出${label}">
-      ${glyph}
+    <button class="${classes.join(' ')}" type="button" data-discard-index="${index}" aria-label="打出${label}">
+      ${tileFaceSvg(tile)}
     </button>
   `;
 }
@@ -41,9 +44,12 @@ function miniTiles(tiles) {
     return '<span class="discard-empty">无</span>';
   }
 
-  return tiles.map((tile) => (
-    `<span class="mini-tile" aria-label="${escapeHtml(tileLabel(tile))}">${tileGlyph(tile)}</span>`
-  )).join('');
+  const lastIndex = tiles.length - 1;
+
+  return tiles.map((tile, index) => {
+    const classes = index === lastIndex ? 'mini-tile is-last' : 'mini-tile';
+    return `<span class="${classes}" aria-label="${escapeHtml(tileLabel(tile))}">${tileFaceSvg(tile)}</span>`;
+  }).join('');
 }
 
 function opponentSeat(player, playerIndex) {
@@ -71,6 +77,12 @@ function discardGrid(game) {
   }).join('');
 }
 
+function choiceMeta(choice) {
+  if (choice.shanten < 0) return '和牌';
+  const progress = choice.shanten === 0 ? '听牌' : `${choice.shanten} 向`;
+  return `${progress} · ${choice.ukeireCount} 张`;
+}
+
 function choicesList(recommendation) {
   const choices = recommendation?.choices?.slice(0, 3) ?? [];
 
@@ -80,8 +92,9 @@ function choicesList(recommendation) {
 
   return choices.map((choice, index) => `
     <li>
-      <span>${index + 1}. ${tileGlyph(choice.discard)}</span>
-      <strong>${escapeHtml(choice.score)}</strong>
+      <span class="choice-rank">${index + 1}</span>
+      <span class="choice-tile">${tileFaceSvg(choice.discard)}</span>
+      <strong class="choice-meta">${escapeHtml(choiceMeta(choice))}</strong>
     </li>
   `).join('');
 }
@@ -104,10 +117,29 @@ function reviewBlock(reviewSummary) {
   `;
 }
 
+function findRecommendedIndex(hand, recommendation) {
+  const best = recommendation?.best ?? null;
+  if (!best) return -1;
+  const targetKey = tileKey(best.discard);
+  return hand.findIndex((tile) => tileKey(tile) === targetKey);
+}
+
+function findDrawnIndex(game) {
+  const draw = [...game.history]
+    .reverse()
+    .find((entry) => entry.type === 'draw' && entry.playerIndex === 0);
+  if (!draw) return -1;
+  return game.players[0].hand.findIndex((tile) => tileKey(tile) === draw.tileKey);
+}
+
 export function renderApp({ game, recommendation, reviewSummary }) {
   const best = recommendation?.best ?? null;
-  const bestDiscardLabel = best ? tileGlyph(best.discard) : '暂无';
+  const bestDiscardFace = best ? tileFaceSvg(best.discard) : '<span class="best-empty">暂无</span>';
   const explanation = best?.explanation ?? '等待可分析的手牌。';
+
+  const hand = game.players[0].hand;
+  const recommendedIndex = findRecommendedIndex(hand, recommendation);
+  const drawnIndex = findDrawnIndex(game);
 
   app.innerHTML = `
     <section class="table" aria-label="长沙麻将训练桌">
@@ -123,7 +155,10 @@ export function renderApp({ game, recommendation, reviewSummary }) {
       </div>
 
       <div class="player-hand" aria-label="玩家手牌">
-        ${game.players[0].hand.map(tileButton).join('')}
+        ${hand.map((tile, index) => tileButton(tile, index, {
+          recommended: index === recommendedIndex,
+          drawn: index === drawnIndex,
+        })).join('')}
       </div>
     </section>
 
@@ -131,7 +166,7 @@ export function renderApp({ game, recommendation, reviewSummary }) {
       <h1>盘中提醒</h1>
       <div class="best-discard">
         <span>推荐打</span>
-        <strong>${bestDiscardLabel}</strong>
+        <div class="best-discard-face">${bestDiscardFace}</div>
       </div>
       <p class="advice-explanation">${escapeHtml(explanation)}</p>
       <h2>备选前三</h2>
