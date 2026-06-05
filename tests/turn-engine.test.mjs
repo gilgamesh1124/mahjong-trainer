@@ -184,9 +184,11 @@ test('turn-engine: requireJiangPair blocks win on non-jiang pair (initialNoJiang
 
   const result = await runHand(game, agents, { delay: noDelay, signal: controller.signal });
 
-  // jiang 规则生效时，seat 2 没能胡牌，手牌继续走到下一家
-  assert.ok(result.result?.type !== 'win' || result.result?.winner !== 2,
+  // jiang 规则生效时，seat 2 没能胡牌，手牌继续走到下一家（座位 2 绝不是赢家）
+  assert.notEqual(result.result?.winner, 2,
     'seat 2 should NOT win when requireJiangPair blocks non-jiang pair');
+  // 且确实走到了下一家（座位 3）才被中止，证明认领窗口未把牌判给座位 2
+  assert.equal(result.currentPlayer, 3);
 });
 
 test('turn-engine: no-jiang-flag allows win on non-jiang pair (initialNoJiang:true)', async () => {
