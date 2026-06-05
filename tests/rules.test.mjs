@@ -288,6 +288,20 @@ test('shantenWithMelds with requireJiangPair still computes shanten via the no-p
   assert.ok(jiangShanten >= defaultShanten, `jiang-shanten (${jiangShanten}) must be >= default-shanten (${defaultShanten})`);
 });
 
+test('requireJiangPair raises shanten when the only pair wait is non-jiang', () => {
+  // 3 完整套(wan123, tong456, tong789) + 非将对子(wan9,wan9) + 搭子(tiao1,tiao2)
+  // 默认：以 wan9 作将 → 听 tiao3，向听 0；将牌门槛下：wan9 不能作将 → 向听 1
+  const hand = tiles([
+    ['wan', 1], ['wan', 2], ['wan', 3],
+    ['tong', 4], ['tong', 5], ['tong', 6],
+    ['tong', 7], ['tong', 8], ['tong', 9],
+    ['wan', 9], ['wan', 9],
+    ['tiao', 1], ['tiao', 2],
+  ]);
+  assert.equal(shantenWithMelds(hand, 0), 0);
+  assert.equal(shantenWithMelds(hand, 0, { requireJiangPair: true }), 1);
+});
+
 test('shantenWithMelds with requireJiangPair is -1 for complete hand with jiang pair', () => {
   // 14-tile complete hand: 123-wan 789-wan 123-tong 123-tiao + pair wan-5 (jiang)
   const hand = tiles([
