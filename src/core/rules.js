@@ -4,8 +4,22 @@ const SUITED_TILES = ['wan', 'tiao', 'tong'].flatMap((suit) =>
   Array.from({ length: 9 }, (_, index) => ({ suit, rank: index + 1 })),
 );
 
+// 将牌判定：2/5/8 为将牌
+export function isJiangTile(tile) {
+  return tile.rank === 2 || tile.rank === 5 || tile.rank === 8;
+}
+
+export function hasJiangTile(tiles) {
+  return tiles.some(isJiangTile);
+}
+
+function parseTileKey(key) {
+  const [suit, rank] = key.split('-');
+  return { suit, rank: Number(rank) };
+}
+
 // 通用胡牌判定：concealed 必须形成 (4 - meldCount) 套 + 1 对
-export function isWinningTiles(concealed, meldCount = 0) {
+export function isWinningTiles(concealed, meldCount = 0, { requireJiangPair = false } = {}) {
   const neededSets = 4 - meldCount;
   if (neededSets < 0) return false;
   if (concealed.length !== neededSets * 3 + 2) return false;
@@ -13,6 +27,7 @@ export function isWinningTiles(concealed, meldCount = 0) {
   const counts = countTiles(concealed);
   for (const [key, count] of counts) {
     if (count < 2) continue;
+    if (requireJiangPair && !isJiangTile(parseTileKey(key))) continue;
     const remaining = new Map(counts);
     remaining.set(key, count - 2);
     if (canFormSets(remaining)) return true;
@@ -198,7 +213,7 @@ function shantenMelds(counts, idx, mentsu, taatsu) {
 }
 
 // hand = 暗手牌（不含副露）；长度应为 13 - 3*meldCount（摸牌后 +1）。meldCount 为已成副露数 0..4。
-export function shantenWithMelds(hand, meldCount = 0) {
+export function shantenWithMelds(hand, meldCount = 0, { requireJiangPair = false } = {}) {
   if (meldCount < 0 || meldCount > 4) {
     throw new RangeError(`meldCount out of range: ${meldCount}`);
   }
@@ -208,6 +223,7 @@ export function shantenWithMelds(hand, meldCount = 0) {
 
   for (let i = 0; i < 27; i++) {
     if (counts[i] >= 2) {
+      if (requireJiangPair && !isJiangIndex(i)) continue;
       counts[i] -= 2;
       best = Math.min(best, shantenMelds(counts, 0, meldCount, 0) - 1);
       counts[i] += 2;
@@ -223,8 +239,9 @@ export function shantenNumber(hand) {
 }
 
 // hand13 = 暗手牌（不含副露）；含副露时长度为 13 - 3*meldCount，非固定 13。
-export function calcUkeire(hand13, visibleCounts, meldCount = 0) {
-  const currentShanten = shantenWithMelds(hand13, meldCount);
+export function calcUkeire(hand13, visibleCounts, meldCount = 0, { requireJiangPair = false } = {}) {
+  const opts = { requireJiangPair };
+  const currentShanten = shantenWithMelds(hand13, meldCount, opts);
   const useful = [];
   let totalCount = 0;
 
@@ -238,7 +255,7 @@ export function calcUkeire(hand13, visibleCounts, meldCount = 0) {
 
       if (remaining <= 0) continue;
 
-      if (shantenWithMelds([...hand13, tile], meldCount) < currentShanten) {
+      if (shantenWithMelds([...hand13, tile], meldCount, opts) < currentShanten) {
         useful.push({ tile, remaining });
         totalCount += remaining;
       }
@@ -246,4 +263,9 @@ export function calcUkeire(hand13, visibleCounts, meldCount = 0) {
   }
 
   return { tiles: useful, totalCount };
+}
+
+function isJiangIndex(index) {
+  const rank = (index % 9) + 1;
+  return rank === 2 || rank === 5 || rank === 8;
 }
