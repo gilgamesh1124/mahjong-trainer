@@ -5,7 +5,6 @@ import { decideAction, decideClaim } from './core/ai.js';
 import { canSelfDrawWin, canConcealedKongs, canAddedKongs } from './core/melds.js';
 import { recordDecision, summarizeReview } from './core/review.js';
 import { renderApp } from './ui/render.js';
-import { tileKey } from './core/tiles.js';
 
 const app = document.querySelector('#app');
 
@@ -23,6 +22,8 @@ function visibleTiles() {
 }
 
 function recommendCurrentHand() {
+  // 已知限制：玩家面板的打牌推荐目前不考虑玩家自己的副露（碰/吃/杠后手牌<13张，
+  // 向听/进张按 0 副露估算，可能偏差）。副露感知的建议属于后续范围，见设计文档。
   return recommendDiscards({ hand: game.players[0].hand, visibleTiles: visibleTiles() });
 }
 
