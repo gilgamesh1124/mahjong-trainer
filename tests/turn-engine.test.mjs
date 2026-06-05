@@ -9,7 +9,8 @@ const handOf = (specs) => specs.map(([s, r]) => t(s, r));
 const noDelay = () => Promise.resolve();
 
 function makeGame(overrides = {}) {
-  const players = [0, 1, 2, 3].map(() => ({ hand: [], melds: [], discards: [] }));
+  // flags.initialNoJiang:true = no jiang pair required (preserves pre-jiang-rule test behavior)
+  const players = [0, 1, 2, 3].map(() => ({ hand: [], melds: [], discards: [], flags: { initialNoJiang: true } }));
   return { players, wall: [], currentPlayer: 0, phase: 'awaiting-discard', lastDiscard: null, lastDraw: null, result: null, history: [], ...overrides };
 }
 
@@ -140,4 +141,77 @@ test('an already-aborted signal returns immediately', async () => {
   const game = makeGame({ currentPlayer: 0 });
   const result = await runHand(game, [passAgent, passAgent, passAgent, passAgent], { delay: noDelay, signal: controller.signal });
   assert.equal(result.phase, 'awaiting-discard'); // 未推进
+});
+
+// --- requireJiangPair 贯穿 turn-engine ---
+// seat 2 听牌：万1(等对) + 万2-3-4 + 万5-6-7 + 筒1-2-3 + 条1-2-3
+// 万1 是 rank 1，非将牌（2/5/8），所以 requireJiangPair 时不能胡
+const nonJiangTenpai = handOf([
+  ['wan', 1],
+  ['wan', 2], ['wan', 3], ['wan', 4],
+  ['wan', 5], ['wan', 6], ['wan', 7],
+  ['tong', 1], ['tong', 2], ['tong', 3],
+  ['tiao', 1], ['tiao', 2], ['tiao', 3],
+]);
+
+test('turn-engine: requireJiangPair blocks win on non-jiang pair (initialNoJiang:false)', async () => {
+  const discardTile = t('wan', 1);
+  // seat 0 需要 14 张手牌（出掉 wan-1 后还有 13 张），随便填入其他牌
+  const seat0Hand = [discardTile, ...handOf([
+    ['tong', 4], ['tong', 5], ['tong', 6], ['tong', 7], ['tong', 8], ['tong', 9],
+    ['wan', 2], ['wan', 3], ['wan', 4], ['tiao', 5], ['tiao', 6], ['tiao', 7], ['tong', 2],
+  ])];
+
+  const game = makeGame({ currentPlayer: 0, wall: [t('tong', 9)] });
+  game.players[0].hand = seat0Hand;
+  game.players[2].hand = [...nonJiangTenpai];
+  // initialNoJiang: false => jiang 将牌要求生效
+  game.players[2].flags = { initialNoJiang: false };
+
+  const seat0 = scripted({ actions: [{ type: 'discard', tile: discardTile }] });
+  // seat 2 会尝试抢胡，但应被 jiang 规则拦住
+  const seat2 = {
+    chooseAction: async () => ({ type: 'discard', tile: t('wan', 1) }),
+    chooseClaim: async (g, s, options) => options.find((o) => o.type === 'win') ?? { type: 'pass' },
+  };
+  const controller = new AbortController();
+  // seat 3 的 chooseAction 被调用时说明轮到座位 3 → 胡牌未发生，终止
+  const seat3 = {
+    chooseAction: async () => { controller.abort(); return { type: 'discard', tile: t('tong', 9) }; },
+    chooseClaim: async () => ({ type: 'pass' }),
+  };
+  const agents = [seat0, passAgent, seat2, seat3];
+
+  const result = await runHand(game, agents, { delay: noDelay, signal: controller.signal });
+
+  // jiang 规则生效时，seat 2 没能胡牌，手牌继续走到下一家
+  assert.ok(result.result?.type !== 'win' || result.result?.winner !== 2,
+    'seat 2 should NOT win when requireJiangPair blocks non-jiang pair');
+});
+
+test('turn-engine: no-jiang-flag allows win on non-jiang pair (initialNoJiang:true)', async () => {
+  const discardTile = t('wan', 1);
+  const seat0Hand = [discardTile, ...handOf([
+    ['tong', 4], ['tong', 5], ['tong', 6], ['tong', 7], ['tong', 8], ['tong', 9],
+    ['wan', 2], ['wan', 3], ['wan', 4], ['tiao', 5], ['tiao', 6], ['tiao', 7], ['tong', 2],
+  ])];
+
+  const game = makeGame({ currentPlayer: 0, wall: [t('tong', 9)] });
+  game.players[0].hand = seat0Hand;
+  game.players[2].hand = [...nonJiangTenpai];
+  // initialNoJiang: true => 无将牌要求，可以非将对胡牌
+  game.players[2].flags = { initialNoJiang: true };
+
+  const seat0 = scripted({ actions: [{ type: 'discard', tile: discardTile }] });
+  const seat2 = {
+    chooseAction: async () => ({ type: 'discard', tile: t('wan', 1) }),
+    chooseClaim: async (g, s, options) => options.find((o) => o.type === 'win') ?? { type: 'pass' },
+  };
+  const agents = [seat0, passAgent, seat2, passAgent];
+
+  const result = await runHand(game, agents, { delay: noDelay });
+
+  assert.equal(result.phase, 'hand-over');
+  assert.equal(result.result?.type, 'win');
+  assert.equal(result.result?.winner, 2);
 });

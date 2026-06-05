@@ -1,5 +1,5 @@
 import { sortTiles } from './tiles.js';
-import { applyDiscard, applyPong, applyChi, applyKong, applyWin, markDraw, drawTile } from './game-state.js';
+import { applyDiscard, applyPong, applyChi, applyKong, applyWin, markDraw, drawTile, shouldRequireJiangPair } from './game-state.js';
 import { claimOptionsFor, resolveClaims } from './claims.js';
 import { canWinOnTile } from './melds.js';
 import { identifyPattern } from './patterns.js';
@@ -15,7 +15,8 @@ function findRobKong(game, kongSeat, tile) {
   let found = null;
   for (let step = 1; step <= 3; step += 1) {
     const seat = (kongSeat + 3 * step) % 4;
-    if (canWinOnTile(game.players[seat].hand, game.players[seat].melds, tile)) { found = seat; break; }
+    const requireJiangPair = shouldRequireJiangPair(game.players[seat]);
+    if (canWinOnTile(game.players[seat].hand, game.players[seat].melds, tile, { requireJiangPair })) { found = seat; break; }
   }
   return found;
 }
@@ -72,7 +73,8 @@ export async function runHand(game, agents, { delay = () => Promise.resolve(), o
     const intents = [];
     for (let step = 1; step <= 3; step += 1) {
       const other = (seat + 3 * step) % 4;
-      const options = claimOptionsFor(other, game.players[other], game.lastDiscard.tile, seat);
+      const requireJiangPair = shouldRequireJiangPair(game.players[other]);
+      const options = claimOptionsFor(other, game.players[other], game.lastDiscard.tile, seat, { requireJiangPair });
       if (options.length === 0) continue;
       const intent = await agents[other].chooseClaim(game, other, options);
       if (aborted()) return game;

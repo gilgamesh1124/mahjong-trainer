@@ -13,9 +13,9 @@ function ccwDistance(from, to) {
   return distance;
 }
 
-export function claimOptionsFor(seat, player, tile, discarderSeat) {
+export function claimOptionsFor(seat, player, tile, discarderSeat, { requireJiangPair = false } = {}) {
   const options = [];
-  if (canWinOnTile(player.hand, player.melds, tile)) options.push({ type: 'win' });
+  if (canWinOnTile(player.hand, player.melds, tile, { requireJiangPair })) options.push({ type: 'win' });
   if (canKongFromDiscard(player.hand, tile)) options.push({ type: 'kong' });
   if (canPong(player.hand, tile)) options.push({ type: 'pong' });
   if (seat === (discarderSeat + 3) % 4) {

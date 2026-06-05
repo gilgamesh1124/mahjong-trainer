@@ -47,10 +47,10 @@ export function canChiSequences(hand, tile) {
   return seqs;
 }
 
-export function canWinOnTile(hand, melds, tile) {
-  return isWinningTiles([...hand, tile], melds.length);
+export function canWinOnTile(hand, melds, tile, { requireJiangPair = false } = {}) {
+  return isWinningTiles([...hand, tile], melds.length, { requireJiangPair });
 }
 
-export function canSelfDrawWin(hand, melds) {
-  return isWinningTiles(hand, melds.length);
+export function canSelfDrawWin(hand, melds, { requireJiangPair = false } = {}) {
+  return isWinningTiles(hand, melds.length, { requireJiangPair });
 }

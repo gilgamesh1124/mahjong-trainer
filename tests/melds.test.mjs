@@ -59,3 +59,38 @@ test('canSelfDrawWin checks the full concealed hand', () => {
   const melds = [{ type: 'pong', tiles: [t('tiao', 2), t('tiao', 2), t('tiao', 2)], from: 2 }];
   assert.equal(canSelfDrawWin(concealed, melds), true);
 });
+
+// --- requireJiangPair tests ---
+// 手牌：万1(对)+ 万2-3-4 + 万5-6-7 + 筒1-2-3 + 条1-2-3（共 14 张，对为万1，非将牌）
+const nonJiangWinHand = hand([
+  ['wan', 1], ['wan', 1],
+  ['wan', 2], ['wan', 3], ['wan', 4],
+  ['wan', 5], ['wan', 6], ['wan', 7],
+  ['tong', 1], ['tong', 2], ['tong', 3],
+  ['tiao', 1], ['tiao', 2], ['tiao', 3],
+]);
+
+// 听牌：去掉一张万1，等万1 点炮
+const nonJiangTenpaiHand = hand([
+  ['wan', 1],
+  ['wan', 2], ['wan', 3], ['wan', 4],
+  ['wan', 5], ['wan', 6], ['wan', 7],
+  ['tong', 1], ['tong', 2], ['tong', 3],
+  ['tiao', 1], ['tiao', 2], ['tiao', 3],
+]);
+
+test('canWinOnTile: default (no requireJiangPair) allows non-jiang pair win', () => {
+  assert.equal(canWinOnTile(nonJiangTenpaiHand, [], t('wan', 1)), true);
+});
+
+test('canWinOnTile: requireJiangPair:true blocks non-jiang pair win', () => {
+  assert.equal(canWinOnTile(nonJiangTenpaiHand, [], t('wan', 1), { requireJiangPair: true }), false);
+});
+
+test('canSelfDrawWin: default (no requireJiangPair) allows non-jiang pair win', () => {
+  assert.equal(canSelfDrawWin(nonJiangWinHand, []), true);
+});
+
+test('canSelfDrawWin: requireJiangPair:true blocks non-jiang pair win', () => {
+  assert.equal(canSelfDrawWin(nonJiangWinHand, [], { requireJiangPair: true }), false);
+});
