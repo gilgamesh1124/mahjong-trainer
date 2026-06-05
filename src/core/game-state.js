@@ -1,4 +1,5 @@
 import { createSeededRandom, shuffle } from './random.js';
+import { hasJiangTile } from './rules.js';
 import { createTileSet, removeOneTile, sortTiles, tileKey } from './tiles.js';
 
 function clonePlayers(players) {
@@ -7,6 +8,7 @@ function clonePlayers(players) {
     hand: [...player.hand],
     discards: [...player.discards],
     melds: [...player.melds],
+    flags: { ...(player.flags ?? {}) },
   }));
 }
 
@@ -15,7 +17,14 @@ function createPlayer(hand = []) {
     hand,
     discards: [],
     melds: [],
+    flags: {
+      initialNoJiang: !hasJiangTile(hand),
+    },
   };
+}
+
+export function shouldRequireJiangPair(player) {
+  return !player.flags?.initialNoJiang;
 }
 
 export function createInitialGame({ seed = Date.now() } = {}) {

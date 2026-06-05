@@ -10,6 +10,7 @@ import {
   applyKong,
   applyWin,
   markDraw,
+  shouldRequireJiangPair,
 } from '../src/core/game-state.js';
 import { tileKey } from '../src/core/tiles.js';
 
@@ -174,4 +175,87 @@ test('applyWin and markDraw set hand-over result', () => {
   const drawn = markDraw(game);
   assert.equal(drawn.phase, 'hand-over');
   assert.equal(drawn.result.type, 'draw');
+});
+
+// M2: per-player initialNoJiang flag + shouldRequireJiangPair
+
+test('createInitialGame sets flags.initialNoJiang as a boolean on every player', () => {
+  const game = createInitialGame({ seed: 1234 });
+  for (const player of game.players) {
+    assert.ok('flags' in player, 'player must have flags');
+    assert.equal(typeof player.flags.initialNoJiang, 'boolean');
+  }
+});
+
+test('shouldRequireJiangPair returns false when initialNoJiang is true (no jiang in starting hand)', () => {
+  const player = { flags: { initialNoJiang: true } };
+  assert.equal(shouldRequireJiangPair(player), false);
+});
+
+test('shouldRequireJiangPair returns true when initialNoJiang is false (has jiang in starting hand)', () => {
+  const player = { flags: { initialNoJiang: false } };
+  assert.equal(shouldRequireJiangPair(player), true);
+});
+
+test('shouldRequireJiangPair returns true when flags are missing (safe default)', () => {
+  assert.equal(shouldRequireJiangPair({}), true);
+  assert.equal(shouldRequireJiangPair({ flags: {} }), true);
+});
+
+test('flags.initialNoJiang correctly reflects presence of 2/5/8-rank tiles in dealt hand', () => {
+  // A hand with only rank-1 tiles has no jiang → initialNoJiang must be true
+  const noJiangGame = {
+    ...createInitialGame({ seed: 1234 }),
+    players: [
+      { hand: [{ suit: 'tong', rank: 1 }, { suit: 'wan', rank: 1 }], discards: [], melds: [], flags: { initialNoJiang: true } },
+    ],
+  };
+  assert.equal(shouldRequireJiangPair(noJiangGame.players[0]), false);
+
+  // A hand with a rank-2 tile has jiang → initialNoJiang must be false
+  const hasJiangGame = {
+    ...createInitialGame({ seed: 1234 }),
+    players: [
+      { hand: [{ suit: 'tong', rank: 2 }, { suit: 'wan', rank: 1 }], discards: [], melds: [], flags: { initialNoJiang: false } },
+    ],
+  };
+  assert.equal(shouldRequireJiangPair(hasJiangGame.players[0]), true);
+});
+
+test('flags survive applyDiscard transition', () => {
+  const game = createInitialGame({ seed: 1234 });
+  const originalFlags = { ...game.players[0].flags };
+  const tile = game.players[0].hand[0];
+  const next = applyDiscard(game, 0, tile);
+  assert.deepEqual(next.players[0].flags, originalFlags);
+});
+
+test('flags survive drawTile transition', () => {
+  const game = createInitialGame({ seed: 1234 });
+  const originalFlags = { ...game.players[1].flags };
+  // first discard so we can draw
+  const afterDiscard = applyDiscard(game, 0, game.players[0].hand[0]);
+  const next = drawTile(afterDiscard, 1);
+  assert.deepEqual(next.players[1].flags, originalFlags);
+});
+
+test('flags survive applyPong transition', () => {
+  let game = createInitialGame({ seed: 1234 });
+  const tile = { suit: 'wan', rank: 1 };
+  game.players[0].discards = [tile];
+  game.players[2].hand = [tile, tile, { suit: 'tong', rank: 1 }];
+  game.players[2].flags = { initialNoJiang: true };
+  game = { ...game, lastDiscard: { seat: 0, tile } };
+
+  const next = applyPong(game, 2, tile, 0);
+  assert.deepEqual(next.players[2].flags, { initialNoJiang: true });
+});
+
+test('flags survive markDraw', () => {
+  const game = createInitialGame({ seed: 1234 });
+  const originalFlags = game.players.map((p) => ({ ...p.flags }));
+  const next = markDraw(game);
+  for (let i = 0; i < 4; i++) {
+    assert.deepEqual(next.players[i].flags, originalFlags[i]);
+  }
 });
