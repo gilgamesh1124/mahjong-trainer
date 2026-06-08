@@ -7,7 +7,9 @@ const t = (suit, rank) => ({ suit, rank });
 const hand = (specs) => specs.map(([s, r]) => t(s, r));
 
 function makeGame(overrides = {}) {
-  const players = [0, 1, 2, 3].map(() => ({ hand: [], melds: [], discards: [] }));
+  // flags: { initialNoJiang: true } → shouldRequireJiangPair returns false.
+  // Pre-jiang tests were written without the jiang-pair rule; this preserves their original intent.
+  const players = [0, 1, 2, 3].map(() => ({ hand: [], melds: [], discards: [], flags: { initialNoJiang: true } }));
   return { players, wall: [], currentPlayer: 0, phase: 'awaiting-discard', lastDiscard: null, lastDraw: null, result: null, history: [], ...overrides };
 }
 
@@ -63,4 +65,39 @@ test('decideAction returns self-win when the hand is complete', () => {
   game.lastDraw = { seat: 0, tile: t('tiao', 1), afterKong: false };
   const action = decideAction(game, 0);
   assert.equal(action.type, 'self-win');
+});
+
+// --- Part B: decideAction threads requireJiangPair via shouldRequireJiangPair ---
+
+// Hand that wins only via a non-jiang pair: 123万+456万+789万+123筒 + 33条 (rank3=non-jiang pair)
+// With requireJiangPair:true (initialNoJiang:false), this should NOT be a self-win → returns discard
+// With requireJiangPair:false (initialNoJiang:true), this IS a valid win → returns self-win
+const NON_JIANG_WIN_HAND = [
+  t('wan', 1), t('wan', 2), t('wan', 3),
+  t('wan', 4), t('wan', 5), t('wan', 6),
+  t('wan', 7), t('wan', 8), t('wan', 9),
+  t('tong', 1), t('tong', 2), t('tong', 3),
+  t('tiao', 3), t('tiao', 3), // rank-3 pair: non-jiang
+];
+
+test('decideAction blocks self-win on non-jiang pair when seat requires jiang (initialNoJiang:false)', () => {
+  const game = makeGame();
+  // initialNoJiang:false means the initial hand HAD a jiang tile → jiang pair IS required
+  game.players[0] = { hand: NON_JIANG_WIN_HAND, melds: [], discards: [], flags: { initialNoJiang: false } };
+  game.lastDraw = { seat: 0, tile: t('tiao', 3), afterKong: false };
+  const action = decideAction(game, 0);
+  // Must NOT declare self-win because tiao-3 is not a jiang pair
+  assert.equal(action.type, 'discard',
+    'should return discard when win requires jiang pair but hand only has non-jiang pair');
+});
+
+test('decideAction allows self-win on non-jiang pair when seat has no-jiang flag (initialNoJiang:true)', () => {
+  const game = makeGame();
+  // initialNoJiang:true means the initial hand had NO jiang tile → jiang pair is NOT required
+  game.players[0] = { hand: NON_JIANG_WIN_HAND, melds: [], discards: [], flags: { initialNoJiang: true } };
+  game.lastDraw = { seat: 0, tile: t('tiao', 3), afterKong: false };
+  const action = decideAction(game, 0);
+  // CAN declare self-win because jiang pair not required
+  assert.equal(action.type, 'self-win',
+    'should return self-win when jiang pair is not required and hand is otherwise complete');
 });

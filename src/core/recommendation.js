@@ -1,12 +1,12 @@
-import { shantenNumber, calcUkeire } from './rules.js';
+import { shantenWithMelds, calcUkeire } from './rules.js';
 import { removeOneTile, tileKey, tileLabel } from './tiles.js';
 
-export function recommendDiscards({ hand, visibleTiles = [] }) {
+export function recommendDiscards({ hand, visibleTiles = [], openMeldCount = 0, requireJiangPair = false }) {
   const visibleCounts = buildVisibleCounts(visibleTiles);
   const uniqueDiscards = uniqueTiles(hand);
 
   const choices = uniqueDiscards
-    .map((discard) => buildChoice(hand, discard, visibleCounts))
+    .map((discard) => buildChoice(hand, discard, visibleCounts, openMeldCount, requireJiangPair))
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return tileKey(a.discard).localeCompare(tileKey(b.discard));
@@ -19,10 +19,10 @@ export function recommendDiscards({ hand, visibleTiles = [] }) {
   };
 }
 
-function buildChoice(hand, discard, visibleCounts) {
+function buildChoice(hand, discard, visibleCounts, openMeldCount, requireJiangPair) {
   const afterDiscard = removeOneTile(hand, discard);
-  const shanten = shantenNumber(afterDiscard);
-  const ukeire = calcUkeire(afterDiscard, visibleCounts);
+  const shanten = shantenWithMelds(afterDiscard, openMeldCount, { requireJiangPair });
+  const ukeire = calcUkeire(afterDiscard, visibleCounts, openMeldCount, { requireJiangPair });
 
   return {
     discard,

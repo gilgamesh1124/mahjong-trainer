@@ -1,5 +1,6 @@
 import { shantenWithMelds, calcUkeire } from './rules.js';
 import { canSelfDrawWin } from './melds.js';
+import { shouldRequireJiangPair } from './game-state.js';
 import { tileKey, removeOneTile } from './tiles.js';
 
 const DANGER_BY_RANK = { 1: 0.2, 2: 0.3, 3: 0.4, 4: 0.6, 5: 0.6, 6: 0.6, 7: 0.4, 8: 0.3, 9: 0.2 };
@@ -46,14 +47,15 @@ export function decideDiscard(game, seat) {
   const player = game.players[seat];
   const meldCount = player.melds.length;
   const seen = visibleCounts(game);
+  const requireJiangPair = shouldRequireJiangPair(player);
 
   let bestTile = player.hand[0];
   let bestScore = -Infinity;
 
   for (const discard of uniqueTiles(player.hand)) {
     const after = removeOneTile(player.hand, discard);
-    const shanten = shantenWithMelds(after, meldCount);
-    const ukeire = calcUkeire(after, seen, meldCount);
+    const shanten = shantenWithMelds(after, meldCount, { requireJiangPair });
+    const ukeire = calcUkeire(after, seen, meldCount, { requireJiangPair });
     const danger = tileDanger(discard, game, seat);
     const score = (8 - shanten) * 1000 + ukeire.totalCount - DANGER_WEIGHT * danger;
     if (score > bestScore) { bestScore = score; bestTile = discard; }
@@ -67,7 +69,8 @@ export function decideClaim(game, seat, options) {
 
   const player = game.players[seat];
   const meldCount = player.melds.length;
-  const current = shantenWithMelds(player.hand, meldCount);
+  const requireJiangPair = shouldRequireJiangPair(player);
+  const current = shantenWithMelds(player.hand, meldCount, { requireJiangPair });
 
   // 评估非胡认领：碰/杠移出对应牌+多一副；吃移出两张顺子搭子+多一副。
   // 仅当能降向听，或已接近听牌(<=1)且不升向听时才认领。
@@ -87,7 +90,7 @@ export function decideClaim(game, seat, options) {
     } catch { removed = false; }
     if (!removed) continue;
 
-    const next = shantenWithMelds(after, meldCount + 1);
+    const next = shantenWithMelds(after, meldCount + 1, { requireJiangPair });
     // 只有当认领后向听 <=2（接近听牌），或者认领不升向听且原本已接近(<=1)时才认领
     if ((next < current && next <= 2) || (next === current && current <= 1)) return option;
   }
@@ -100,7 +103,7 @@ function lastTile(game) {
 
 export function decideAction(game, seat) {
   const player = game.players[seat];
-  if (canSelfDrawWin(player.hand, player.melds)) {
+  if (canSelfDrawWin(player.hand, player.melds, { requireJiangPair: shouldRequireJiangPair(player) })) {
     return { type: 'self-win' };
   }
   // 简化：AI 不主动暗杠/补杠（机制保留给玩家）
