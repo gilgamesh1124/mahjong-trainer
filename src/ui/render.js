@@ -119,6 +119,28 @@ function reviewBlock(reviewSummary) {
   `;
 }
 
+// 听牌提醒：当推荐打法达到听牌(shanten 0)时，列出能胡的牌（即听哪些张）
+function waitBlock(recommendation, isPlayerDiscardTurn) {
+  const best = recommendation?.best ?? null;
+  if (!isPlayerDiscardTurn || !best || best.shanten !== 0) return '';
+  const tiles = best.usefulTiles ?? [];
+  if (tiles.length === 0) return '';
+
+  const total = tiles.reduce((sum, u) => sum + u.remaining, 0);
+  const faces = tiles.map((u) => `
+    <span class="wait-tile" aria-label="${escapeHtml(tileLabel(u.tile))}（剩 ${escapeHtml(u.remaining)} 张）">
+      ${tileFaceSvg(u.tile)}<em>${escapeHtml(u.remaining)}</em>
+    </span>`).join('');
+
+  return `
+    <div class="wait-block">
+      <span class="wait-label">打 ${escapeHtml(tileLabel(best.discard))} 后听</span>
+      <div class="wait-tiles">${faces}</div>
+      <span class="wait-total">共 ${escapeHtml(total)} 张</span>
+    </div>
+  `;
+}
+
 function findRecommendedIndex(hand, recommendation) {
   const best = recommendation?.best ?? null;
   if (!best) return -1;
@@ -132,7 +154,7 @@ function findDrawnIndex(game) {
   return game.players[0].hand.findIndex((tile) => tileKey(tile) === tileKey(draw.tile));
 }
 
-export function renderApp({ game, recommendation, reviewSummary, operationReviewSummary, interaction = {} }) {
+export function renderApp({ game, recommendation, reviewSummary, operationReviewSummary, interaction = {}, adviceCollapsed = false }) {
   const best = recommendation?.best ?? null;
   const bestDiscardFace = best ? tileFaceSvg(best.discard) : '<span class="best-empty">暂无</span>';
   const explanation = best?.explanation ?? '等待可分析的手牌。';
@@ -149,6 +171,8 @@ export function renderApp({ game, recommendation, reviewSummary, operationReview
   const noJiangPrompt = (initialNoJiang && game.phase !== 'hand-over')
     ? '<div class="no-jiang-prompt">起手无将路线：本局不强制 2/5/8 作将</div>'
     : '';
+
+  app.className = adviceCollapsed ? 'app-shell advice-collapsed' : 'app-shell';
 
   app.innerHTML = `
     <section class="table" aria-label="长沙麻将训练桌">
@@ -177,21 +201,25 @@ export function renderApp({ game, recommendation, reviewSummary, operationReview
       </div>
     </section>
 
-    <aside class="advice-panel" aria-label="盘中提醒">
-      <h1>盘中提醒</h1>
-      ${noJiangPrompt}
-      <div class="best-discard">
-        <span>推荐打</span>
-        <div class="best-discard-face">${bestDiscardFace}</div>
+    <aside class="advice-panel${adviceCollapsed ? ' is-collapsed' : ''}" aria-label="盘中提醒">
+      <button class="advice-collapse-toggle" type="button" aria-label="${adviceCollapsed ? '展开盘中提醒' : '收起盘中提醒'}">${adviceCollapsed ? '‹ 提醒' : '收起 ›'}</button>
+      <div class="advice-body">
+        <h1>盘中提醒</h1>
+        ${noJiangPrompt}
+        <div class="best-discard">
+          <span>推荐打</span>
+          <div class="best-discard-face">${bestDiscardFace}</div>
+        </div>
+        <p class="advice-explanation">${escapeHtml(isPlayerDiscardTurn ? explanation : statusText(game))}</p>
+        ${waitBlock(recommendation, isPlayerDiscardTurn)}
+        <h2>备选前三</h2>
+        <ol class="choice-list">${choicesList(recommendation)}</ol>
+        <h2>出牌复盘</h2>
+        <div class="review-summary">${reviewBlock(reviewSummary)}</div>
+        <h2>吃碰杠胡复盘</h2>
+        <div class="review-summary">${operationReviewBlock(operationReviewSummary)}</div>
+        <button class="new-hand-button" type="button">新开一局</button>
       </div>
-      <p class="advice-explanation">${escapeHtml(isPlayerDiscardTurn ? explanation : statusText(game))}</p>
-      <h2>备选前三</h2>
-      <ol class="choice-list">${choicesList(recommendation)}</ol>
-      <h2>出牌复盘</h2>
-      <div class="review-summary">${reviewBlock(reviewSummary)}</div>
-      <h2>吃碰杠胡复盘</h2>
-      <div class="review-summary">${operationReviewBlock(operationReviewSummary)}</div>
-      <button class="new-hand-button" type="button">新开一局</button>
     </aside>
 
     ${resultBanner(game.result, PLAYER_NAMES)}

@@ -15,6 +15,7 @@ let operationReviewRecords = [];
 let controller = null;
 let pending = null;           // { kind:'action'|'claim', resolve, ... }
 let currentRecommendation = null;
+let adviceCollapsed = false;  // 盘中提醒面板是否收缩
 
 const DELAY_MS = 1000;
 const delay = () => new Promise((r) => setTimeout(r, DELAY_MS));
@@ -48,6 +49,7 @@ function render() {
     reviewSummary: summarizeReview(reviewRecords),
     operationReviewSummary: summarizeOperationReview(operationReviewRecords),
     interaction,
+    adviceCollapsed,
   });
 }
 
@@ -112,6 +114,11 @@ function startNewHand() {
 }
 
 app.addEventListener('click', (event) => {
+  if (event.target.closest('.advice-collapse-toggle')) {
+    adviceCollapsed = !adviceCollapsed;
+    render();
+    return;
+  }
   if (event.target.closest('.new-hand-button')) { startNewHand(); return; }
 
   // 玩家出牌（仅当引擎在等玩家动作时）
