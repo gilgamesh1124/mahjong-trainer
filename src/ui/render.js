@@ -1,6 +1,6 @@
 import { tileKey, tileLabel } from '../core/tiles.js';
 import { tileFaceSvg } from './tile-face.js';
-import { claimControls, selfActionControls, meldsStrip, resultBanner, actionFlash } from './overlays.js';
+import { claimControls, selfActionControls, meldsStrip, resultBanner, actionFlash, operationReviewBlock } from './overlays.js';
 
 const app = document.querySelector('#app');
 
@@ -132,7 +132,7 @@ function findDrawnIndex(game) {
   return game.players[0].hand.findIndex((tile) => tileKey(tile) === tileKey(draw.tile));
 }
 
-export function renderApp({ game, recommendation, reviewSummary, interaction = {} }) {
+export function renderApp({ game, recommendation, reviewSummary, operationReviewSummary, interaction = {} }) {
   const best = recommendation?.best ?? null;
   const bestDiscardFace = best ? tileFaceSvg(best.discard) : '<span class="best-empty">暂无</span>';
   const explanation = best?.explanation ?? '等待可分析的手牌。';
@@ -144,6 +144,11 @@ export function renderApp({ game, recommendation, reviewSummary, interaction = {
   const activeSeat = game.phase === 'hand-over' ? -1 : game.currentPlayer;
 
   const handDisabled = isPlayerDiscardTurn ? '' : ' is-disabled';
+
+  const initialNoJiang = game.players[0].flags?.initialNoJiang;
+  const noJiangPrompt = (initialNoJiang && game.phase !== 'hand-over')
+    ? '<div class="no-jiang-prompt">起手无将路线：本局不强制 2/5/8 作将</div>'
+    : '';
 
   app.innerHTML = `
     <section class="table" aria-label="长沙麻将训练桌">
@@ -162,7 +167,7 @@ export function renderApp({ game, recommendation, reviewSummary, interaction = {
       <div class="player-zone${activeSeat === 0 ? ' is-active' : ''}">
         ${meldsStrip(game.players[0].melds)}
         ${selfActionControls(interaction.selfActions)}
-        ${claimControls(interaction.claimOptions)}
+        ${claimControls(interaction.claimOptions, interaction.operationAdvice)}
         <div class="player-hand${handDisabled}" aria-label="玩家手牌">
           ${hand.map((tile, index) => tileButton(tile, index, {
             recommended: index === recommendedIndex,
@@ -174,6 +179,7 @@ export function renderApp({ game, recommendation, reviewSummary, interaction = {
 
     <aside class="advice-panel" aria-label="盘中提醒">
       <h1>盘中提醒</h1>
+      ${noJiangPrompt}
       <div class="best-discard">
         <span>推荐打</span>
         <div class="best-discard-face">${bestDiscardFace}</div>
@@ -181,8 +187,10 @@ export function renderApp({ game, recommendation, reviewSummary, interaction = {
       <p class="advice-explanation">${escapeHtml(isPlayerDiscardTurn ? explanation : statusText(game))}</p>
       <h2>备选前三</h2>
       <ol class="choice-list">${choicesList(recommendation)}</ol>
-      <h2>复盘</h2>
+      <h2>出牌复盘</h2>
       <div class="review-summary">${reviewBlock(reviewSummary)}</div>
+      <h2>吃碰杠胡复盘</h2>
+      <div class="review-summary">${operationReviewBlock(operationReviewSummary)}</div>
       <button class="new-hand-button" type="button">新开一局</button>
     </aside>
 

@@ -1,7 +1,7 @@
 import { tileFaceSvg } from './tile-face.js';
 import { tileLabel } from '../core/tiles.js';
 
-const ACTION_LABEL = { pong: '碰', kong: '杠', chi: '吃', win: '胡', 'self-win': '自摸' };
+const ACTION_LABEL = { pong: '碰', kong: '杠', chi: '吃', win: '胡', pass: '过', 'self-win': '自摸' };
 
 function escapeHtml(value) {
   return String(value)
@@ -9,8 +9,66 @@ function escapeHtml(value) {
     .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
 
-// 玩家可认领时的按钮条；options 为 claimOptionsFor 结果
-export function claimControls(options) {
+// 认领建议中单个选项的文本和牌面
+function operationActionContent(choice) {
+  const label = ACTION_LABEL[choice.type] ?? choice.type;
+  if (!choice.tiles || choice.tiles.length === 0 || choice.type === 'pass') {
+    return `<span class="op-action-label">${escapeHtml(label)}</span>`;
+  }
+  const faces = choice.tiles.map((t) => `<span class="op-action-tile">${tileFaceSvg(t)}</span>`).join('');
+  return `<span class="op-action-label">${escapeHtml(label)}</span>${faces}`;
+}
+
+// 认领建议块：展示在按钮条上方
+function operationAdviceBlock(operationAdvice) {
+  if (!operationAdvice?.best) return '';
+
+  const best = operationAdvice.best;
+  const choiceItems = operationAdvice.choices.slice(0, 4).map((choice) => {
+    const meta = choice.shanten < 0 ? '和牌' : `${choice.shanten} 向 / ${choice.ukeireCount} 张`;
+    return `
+      <li class="op-choice-item">
+        <span class="op-choice-action">${operationActionContent(choice)}</span>
+        <strong class="op-choice-meta">${escapeHtml(meta)}</strong>
+      </li>
+    `;
+  }).join('');
+
+  return `
+    <div class="operation-advice">
+      <div class="operation-best">
+        <span class="op-best-label">建议操作</span>
+        <span class="op-best-action">${operationActionContent(best)}</span>
+      </div>
+      <p class="op-best-explanation">${escapeHtml(best.explanation)}</p>
+      <ol class="operation-choice-list">
+        ${choiceItems}
+      </ol>
+    </div>
+  `;
+}
+
+// 操作复盘块
+export function operationReviewBlock(summary) {
+  if (!summary || summary.totalDecisions === 0) {
+    return '<p class="review-empty">本局还没有吃碰杠胡决策记录。</p>';
+  }
+
+  const moments = summary.keyMoments?.slice(0, 3) ?? [];
+  const momentItems = moments.length > 0
+    ? moments.map((moment) => `<li>${escapeHtml(moment)}</li>`).join('')
+    : '<li>目前吃碰杠胡选择都与建议一致。</li>';
+
+  return `
+    <p>已记录 ${escapeHtml(String(summary.totalDecisions))} 次操作，跟随建议 ${escapeHtml(String(summary.followedBestCount))} 次。</p>
+    <ul class="review-moments">
+      ${momentItems}
+    </ul>
+  `;
+}
+
+// 玩家可认领时的按钮条；options 为 claimOptionsFor 结果，operationAdvice 为建议对象
+export function claimControls(options, operationAdvice) {
   if (!options || options.length === 0) return '';
   const buttons = options.map((option, index) => {
     const label = option.type === 'chi'
@@ -18,7 +76,10 @@ export function claimControls(options) {
       : ACTION_LABEL[option.type] ?? option.type;
     return `<button class="claim-button" type="button" data-claim-index="${index}">${escapeHtml(label)}</button>`;
   }).join('');
-  return `<div class="claim-bar">${buttons}<button class="claim-button claim-pass" type="button" data-claim-pass="1">过</button></div>`;
+  return `
+    ${operationAdviceBlock(operationAdvice)}
+    <div class="claim-bar">${buttons}<button class="claim-button claim-pass" type="button" data-claim-pass="1">过</button></div>
+  `;
 }
 
 // 自己回合的额外动作（自摸/暗杠/补杠）
