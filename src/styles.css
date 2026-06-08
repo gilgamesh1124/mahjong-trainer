@@ -597,14 +597,36 @@ button {
 }
 .result-card {
   display: grid; gap: 12px; justify-items: center;
-  padding: 28px 36px;
+  max-width: min(680px, 92vw);
+  padding: 24px 28px;
   border: 1px solid #ffe27a; border-radius: 12px;
   background: #1b2422; color: #f4f7f1;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 .result-card h2 { margin: 0; color: #ffe27a; }
-.result-face { width: 56px; height: 74px; padding: 5px; border-radius: 8px; background: linear-gradient(180deg, #fffdf6, #ece0c5); }
-.result-face .tile-face { width: 100%; height: 100%; display: block; }
+.result-way { margin: 0; color: #cfe9d8; }
+
+/* 胡牌方明牌 */
+.reveal-hand {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.reveal-meld { display: inline-flex; gap: 2px; padding: 2px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); }
+.reveal-concealed { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.reveal-tile {
+  width: 30px; height: 40px; padding: 3px 2px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #fffdf6, #ece0c5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.reveal-tile .tile-face { width: 100%; height: 100%; display: block; }
+.reveal-tile.is-winning {
+  margin-left: 6px;
+  box-shadow: 0 0 0 2px #ffcf3f, 0 0 14px rgba(255, 207, 63, 0.7);
+}
 
 /* 起手无将提示 */
 .no-jiang-prompt {

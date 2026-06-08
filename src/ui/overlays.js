@@ -1,5 +1,5 @@
 import { tileFaceSvg } from './tile-face.js';
-import { tileLabel } from '../core/tiles.js';
+import { tileLabel, sortTiles, removeOneTile } from '../core/tiles.js';
 
 const ACTION_LABEL = { pong: '碰', kong: '杠', chi: '吃', win: '胡', pass: '过', 'self-win': '自摸' };
 
@@ -112,8 +112,32 @@ export function actionFlash(game) {
   return `<div class="action-flash" aria-hidden="true">${text}!</div>`;
 }
 
+// 胡牌方明牌：副露 + 暗手 + 胡的牌（高亮）
+function revealHand(winner, result) {
+  // 暗手统一为"不含胡牌张"，再把胡牌张单独高亮展示：
+  // 自摸时胡牌张已在手里，移除一张；点炮/抢杠时手里本就没有，直接展示。
+  let concealed = winner.hand;
+  if (result.winType === 'self-draw') {
+    try { concealed = removeOneTile(winner.hand, result.tile); } catch { concealed = winner.hand; }
+  }
+  const meldsHtml = winner.melds.map((meld) => {
+    const faces = meld.tiles.map((t) => `<span class="reveal-tile">${tileFaceSvg(t)}</span>`).join('');
+    return `<span class="reveal-meld">${faces}</span>`;
+  }).join('');
+  const concealedHtml = sortTiles(concealed)
+    .map((t) => `<span class="reveal-tile">${tileFaceSvg(t)}</span>`).join('');
+  return `
+    <div class="reveal-hand">
+      ${meldsHtml}
+      <span class="reveal-concealed">${concealedHtml}</span>
+      <span class="reveal-tile is-winning" aria-label="胡的牌 ${escapeHtml(tileLabel(result.tile))}">${tileFaceSvg(result.tile)}</span>
+    </div>
+  `;
+}
+
 // 结局横幅
-export function resultBanner(result, names) {
+export function resultBanner(game, names) {
+  const result = game?.result;
   if (!result) return '';
   if (result.type === 'draw') {
     return `<div class="result-banner"><div class="result-card"><h2>流局</h2><button class="new-hand-button" type="button">新开一局</button></div></div>`;
@@ -122,8 +146,8 @@ export function resultBanner(result, names) {
   const way = result.winType === 'self-draw' ? '自摸' : result.winType === 'rob-kong' ? '抢杠胡' : `点炮（${names[result.loser]} 放炮）`;
   return `<div class="result-banner"><div class="result-card">
     <h2>${escapeHtml(who)} 胡牌</h2>
-    <div class="result-face">${tileFaceSvg(result.tile)}</div>
-    <p>${escapeHtml(way)} · ${escapeHtml(result.pattern)}</p>
+    <p class="result-way">${escapeHtml(way)} · ${escapeHtml(result.pattern)}</p>
+    ${revealHand(game.players[result.winner], result)}
     <button class="new-hand-button" type="button">新开一局</button>
   </div></div>`;
 }

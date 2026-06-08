@@ -222,7 +222,7 @@ export function renderApp({ game, recommendation, reviewSummary, operationReview
       </div>
     </aside>
 
-    ${resultBanner(game.result, PLAYER_NAMES)}
+    ${resultBanner(game, PLAYER_NAMES)}
   `;
 }
 
