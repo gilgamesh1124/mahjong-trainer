@@ -75,8 +75,12 @@ export function recordOperationDecision(records, {
   const chosenChoice = advice?.choices?.find(
     (choice) => choice.type === chosenAction && sameTiles(choice.tiles ?? [], chosenTiles),
   ) ?? advice?.choices?.find((choice) => choice.type === chosenAction) ?? null;
+  // 仅「吃」同类型有多个顺子选择，需按具体牌区分；碰/杠/胡/过 按类型即可判定是否跟随建议
+  const tilesMatchForFollow = best && best.type === 'chi'
+    ? sameTiles(best.tiles ?? [], chosenTiles)
+    : true;
   const followedBest = best
-    ? chosenAction === best.type && sameTiles(best.tiles ?? [], chosenTiles)
+    ? chosenAction === best.type && tilesMatchForFollow
     : true;
 
   return [
