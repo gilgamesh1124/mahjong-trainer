@@ -33,6 +33,7 @@ function recommendCurrentHand() {
     visibleTiles: visibleTiles(),
     openMeldCount: game.players[0].melds.length,
     requireJiangPair: shouldRequireJiangPair(game.players[0]),
+    melds: game.players[0].melds,
   });
 }
 

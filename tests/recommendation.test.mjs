@@ -99,6 +99,50 @@ test('recommendDiscards default (no requireJiangPair) is unchanged for JIANG_PAI
   assert.equal(result.best.shanten, 0, 'should still reach tenpai without requireJiangPair flag');
 });
 
+// --- 价值加权启发式（胡牌方式 + 安全度）---
+
+test('recommendDiscards scores flush-leaning discards higher on patternValue', () => {
+  // 13 万 + 1 条：打条 → 暗手全为万(清一色倾向高)；打某张万 → 花色更杂
+  const hand = [
+    { suit: 'wan', rank: 1 }, { suit: 'wan', rank: 2 }, { suit: 'wan', rank: 3 },
+    { suit: 'wan', rank: 4 }, { suit: 'wan', rank: 5 }, { suit: 'wan', rank: 6 },
+    { suit: 'wan', rank: 7 }, { suit: 'wan', rank: 8 }, { suit: 'wan', rank: 9 },
+    { suit: 'wan', rank: 1 }, { suit: 'wan', rank: 1 },
+    { suit: 'wan', rank: 5 }, { suit: 'wan', rank: 5 },
+    { suit: 'tiao', rank: 9 },
+  ];
+  const result = recommendDiscards({ hand });
+  const dropTiao = result.choices.find((c) => c.discard.suit === 'tiao');
+  const dropWan = result.choices.find((c) => c.discard.suit === 'wan');
+  assert.ok(dropTiao && dropWan);
+  assert.ok(dropTiao.patternValue > dropWan.patternValue,
+    '保留全万(清一色倾向)的弃张牌型价值应更高');
+});
+
+test('recommendDiscards lowers danger for a tile already widely visible', () => {
+  const hand = [
+    { suit: 'wan', rank: 1 }, { suit: 'wan', rank: 2 }, { suit: 'wan', rank: 3 },
+    { suit: 'wan', rank: 4 }, { suit: 'wan', rank: 5 }, { suit: 'wan', rank: 6 },
+    { suit: 'tong', rank: 1 }, { suit: 'tong', rank: 2 }, { suit: 'tong', rank: 3 },
+    { suit: 'tiao', rank: 1 }, { suit: 'tiao', rank: 2 }, { suit: 'tiao', rank: 3 },
+    { suit: 'tong', rank: 5 }, { suit: 'tong', rank: 5 },
+  ];
+  const dangerHidden = recommendDiscards({ hand })
+    .choices.find((c) => c.discard.suit === 'tong' && c.discard.rank === 5).danger;
+  const dangerSeen = recommendDiscards({
+    hand,
+    visibleTiles: [{ suit: 'tong', rank: 5 }, { suit: 'tong', rank: 5 }],
+  }).choices.find((c) => c.discard.suit === 'tong' && c.discard.rank === 5).danger;
+  assert.ok(dangerSeen < dangerHidden, '已被看到的张放炮风险应更低');
+});
+
+test('recommendDiscards keeps shanten dominant over value/danger weighting', () => {
+  // 价值/安全度的量级必须远小于一个向听(1000)，不得跨越向听层级
+  const result = recommendDiscards({ hand: TENPAI_HAND });
+  // 最优仍是听牌(shanten 0)的弃张，不会因价值被某张更高向听的牌挤掉
+  assert.equal(result.best.shanten, 0);
+});
+
 test('recommendDiscards openMeldCount changes shanten of choices', () => {
   // A hand sized for 1 open meld: 11 tiles (14 - 3*1).
   // 123万+456万+789万 (complete 3 sets) + 11条 (pair) + 9筒 (isolated extra, the one to discard)
