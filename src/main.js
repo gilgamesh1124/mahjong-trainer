@@ -1,15 +1,17 @@
-import { createInitialGame } from './core/game-state.js';
+import { createInitialGame, shouldRequireJiangPair } from './core/game-state.js';
 import { runHand } from './core/turn-engine.js';
 import { recommendDiscards } from './core/recommendation.js';
+import { recommendOperation } from './core/operation-advice.js';
 import { decideAction, decideClaim } from './core/ai.js';
 import { canSelfDrawWin, canConcealedKongs, canAddedKongs } from './core/melds.js';
-import { recordDecision, summarizeReview } from './core/review.js';
+import { recordDecision, summarizeReview, recordOperationDecision, summarizeOperationReview } from './core/review.js';
 import { renderApp } from './ui/render.js';
 
 const app = document.querySelector('#app');
 
 let game = null;
 let reviewRecords = [];
+let operationReviewRecords = [];
 let controller = null;
 let pending = null;           // { kind:'action'|'claim', resolve, ... }
 let currentRecommendation = null;
@@ -18,20 +20,35 @@ const DELAY_MS = 1000;
 const delay = () => new Promise((r) => setTimeout(r, DELAY_MS));
 
 function visibleTiles() {
-  return game.players.flatMap((player) => player.discards);
+  return game.players.flatMap((player) => [
+    ...player.discards,
+    ...player.melds.flatMap((meld) => meld.tiles),
+  ]);
 }
 
 function recommendCurrentHand() {
-  // 已知限制：玩家面板的打牌推荐目前不考虑玩家自己的副露（碰/吃/杠后手牌<13张，
-  // 向听/进张按 0 副露估算，可能偏差）。副露感知的建议属于后续范围，见设计文档。
-  return recommendDiscards({ hand: game.players[0].hand, visibleTiles: visibleTiles() });
+  return recommendDiscards({
+    hand: game.players[0].hand,
+    visibleTiles: visibleTiles(),
+    openMeldCount: game.players[0].melds.length,
+    requireJiangPair: shouldRequireJiangPair(game.players[0]),
+  });
 }
 
 function render() {
   const interaction = {};
-  if (pending?.kind === 'claim') interaction.claimOptions = pending.options;
+  if (pending?.kind === 'claim') {
+    interaction.claimOptions = pending.options;
+    interaction.operationAdvice = pending.operationAdvice;
+  }
   if (pending?.kind === 'action') interaction.selfActions = pending.selfActions;
-  renderApp({ game, recommendation: currentRecommendation, reviewSummary: summarizeReview(reviewRecords), interaction });
+  renderApp({
+    game,
+    recommendation: currentRecommendation,
+    reviewSummary: summarizeReview(reviewRecords),
+    operationReviewSummary: summarizeOperationReview(operationReviewRecords),
+    interaction,
+  });
 }
 
 function onUpdate(next) {
@@ -47,14 +64,21 @@ const humanAgent = {
   chooseAction: (g) => new Promise((resolve) => {
     const player = g.players[0];
     const selfActions = [];
-    if (canSelfDrawWin(player.hand, player.melds)) selfActions.push({ type: 'self-win' });
+    if (canSelfDrawWin(player.hand, player.melds, { requireJiangPair: shouldRequireJiangPair(player) })) selfActions.push({ type: 'self-win' });
     for (const tile of canConcealedKongs(player.hand)) selfActions.push({ type: 'concealed-kong', tile });
     for (const tile of canAddedKongs(player.hand, player.melds)) selfActions.push({ type: 'added-kong', tile });
     pending = { kind: 'action', resolve, selfActions };
     render();
   }),
   chooseClaim: (g, seat, options) => new Promise((resolve) => {
-    pending = { kind: 'claim', resolve, options };
+    const operationAdvice = recommendOperation({
+      player: g.players[0],
+      options,
+      discardedTile: g.lastDiscard.tile,
+      visibleTiles: visibleTiles(),
+      requireJiangPair: shouldRequireJiangPair(g.players[0]),
+    });
+    pending = { kind: 'claim', resolve, options, operationAdvice };
     render();
   }),
 };
@@ -80,6 +104,7 @@ function startNewHand() {
   controller = new AbortController();
   game = createInitialGame();
   reviewRecords = [];
+  operationReviewRecords = [];
   pending = null;
   currentRecommendation = recommendCurrentHand();
   render();
@@ -107,10 +132,23 @@ app.addEventListener('click', (event) => {
 
   const claimEl = event.target.closest('[data-claim-index]');
   if (claimEl && pending?.kind === 'claim') {
-    resolvePending(pending.options[Number(claimEl.dataset.claimIndex)]);
+    const option = pending.options[Number(claimEl.dataset.claimIndex)];
+    operationReviewRecords = recordOperationDecision(operationReviewRecords, {
+      turn: operationReviewRecords.length + 1,
+      chosenAction: option.type,
+      chosenTiles: option.tiles ?? [game.lastDiscard.tile],
+      advice: pending.operationAdvice,
+    });
+    resolvePending(option);
     return;
   }
   if (event.target.closest('[data-claim-pass]') && pending?.kind === 'claim') {
+    operationReviewRecords = recordOperationDecision(operationReviewRecords, {
+      turn: operationReviewRecords.length + 1,
+      chosenAction: 'pass',
+      chosenTiles: [game.lastDiscard.tile],
+      advice: pending.operationAdvice,
+    });
     resolvePending({ type: 'pass' });
   }
 });
