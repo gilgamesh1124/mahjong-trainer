@@ -1,9 +1,10 @@
 import { tileLabel, tileKey } from './tiles.js';
 
+// 认领类型用本引擎的词汇（与 claims.js / operation-advice.js 一致）
 const ACTION_LABELS = {
-  hu: '胡',
-  gang: '杠',
-  peng: '碰',
+  win: '胡',
+  kong: '杠',
+  pong: '碰',
   chi: '吃',
   pass: '过',
 };
@@ -69,12 +70,13 @@ export function recordOperationDecision(records, {
   chosenTiles = [],
   advice,
 }) {
+  // chosenAction 为本引擎的认领类型（win/kong/pong/chi/pass），与 advice.choices[].type 对齐
   const best = advice?.best ?? null;
   const chosenChoice = advice?.choices?.find(
-    (choice) => choice.action === chosenAction && sameTiles(choice.tiles ?? [], chosenTiles),
-  ) ?? advice?.choices?.find((choice) => choice.action === chosenAction) ?? null;
+    (choice) => choice.type === chosenAction && sameTiles(choice.tiles ?? [], chosenTiles),
+  ) ?? advice?.choices?.find((choice) => choice.type === chosenAction) ?? null;
   const followedBest = best
-    ? chosenAction === best.action && sameTiles(best.tiles ?? [], chosenTiles)
+    ? chosenAction === best.type && sameTiles(best.tiles ?? [], chosenTiles)
     : true;
 
   return [
@@ -85,7 +87,7 @@ export function recordOperationDecision(records, {
       chosenTiles,
       chosenShanten: chosenChoice?.shanten ?? null,
       chosenUkeire: chosenChoice?.ukeireCount ?? null,
-      bestAction: best?.action ?? null,
+      bestAction: best?.type ?? null,
       bestTiles: best?.tiles ?? [],
       bestShanten: best?.shanten ?? null,
       bestUkeire: best?.ukeireCount ?? null,
