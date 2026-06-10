@@ -853,3 +853,10 @@ button {
     padding: 18px;
   }
 }
+
+/* 键盘可达性 + 面板按钮贴底（与原 new-hand-button 行为一致） */
+.next-hand-button:focus-visible,
+.reset-match-button:focus-visible {
+  outline: 2px solid rgba(115, 211, 143, 0.35);
+}
+.advice-body .next-hand-button { margin-top: auto; }
