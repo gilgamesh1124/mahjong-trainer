@@ -27,23 +27,23 @@ export function shouldRequireJiangPair(player) {
   return !player.flags?.initialNoJiang;
 }
 
-export function createInitialGame({ seed = Date.now() } = {}) {
+export function createInitialGame({ seed = Date.now(), dealerSeat = 0 } = {}) {
   const originalWall = shuffle(createTileSet(), createSeededRandom(seed));
-  let cursor = 0;
+  const handSizes = [13, 13, 13, 13];
+  handSizes[dealerSeat] = 14;
 
-  const players = [
-    createPlayer(sortTiles(originalWall.slice(cursor, cursor + 14))),
-    createPlayer(sortTiles(originalWall.slice(cursor + 14, cursor + 27))),
-    createPlayer(sortTiles(originalWall.slice(cursor + 27, cursor + 40))),
-    createPlayer(sortTiles(originalWall.slice(cursor + 40, cursor + 53))),
-  ];
-  cursor = 53;
+  let cursor = 0;
+  const players = handSizes.map((size) => {
+    const hand = sortTiles(originalWall.slice(cursor, cursor + size));
+    cursor += size;
+    return createPlayer(hand);
+  });
 
   return {
     seed,
     players,
     wall: originalWall.slice(cursor),
-    currentPlayer: 0,
+    currentPlayer: dealerSeat,
     phase: 'awaiting-discard',
     history: [],
     lastDiscard: null,

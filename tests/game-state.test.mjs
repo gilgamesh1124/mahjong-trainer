@@ -259,3 +259,12 @@ test('flags survive markDraw', () => {
     assert.deepEqual(next.players[i].flags, originalFlags[i]);
   }
 });
+
+test('createInitialGame deals 14 tiles to a non-zero dealer who acts first', () => {
+  const game = createInitialGame({ seed: 1234, dealerSeat: 2 });
+  assert.equal(game.players[2].hand.length, 14);
+  for (const seat of [0, 1, 3]) assert.equal(game.players[seat].hand.length, 13);
+  assert.equal(game.currentPlayer, 2);
+  assert.equal(game.wall.length, 55);
+  assert.equal(typeof game.players[2].flags.initialNoJiang, 'boolean');
+});
