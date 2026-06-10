@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { identifyPattern } from '../src/core/patterns.js';
+import { identifyPattern, identifyPatterns } from '../src/core/patterns.js';
 
 const t = (suit, rank) => ({ suit, rank });
 const hand = (specs) => specs.map(([s, r]) => t(s, r));
@@ -44,4 +44,64 @@ test('plain self draw is 自摸; plain discard win is 平胡', () => {
   ]);
   assert.equal(identifyPattern(concealed, [], t('wan', 1), { selfDraw: true }), '自摸');
   assert.equal(identifyPattern(concealed, [], t('wan', 1), {}), '平胡');
+});
+
+test('identifyPatterns returns empty array for a plain hand', () => {
+  const concealed = hand([
+    ['wan', 1], ['wan', 2], ['wan', 3],
+    ['wan', 4], ['wan', 5], ['wan', 6],
+    ['tong', 1], ['tong', 2], ['tong', 3],
+    ['tiao', 7], ['tiao', 8], ['tiao', 9],
+    ['tong', 5], ['tong', 5],
+  ]);
+  assert.deepEqual(identifyPatterns(concealed, [], t('wan', 1), { selfDraw: true }), []);
+});
+
+test('identifyPatterns stacks 清一色 and 碰碰胡', () => {
+  const concealed = hand([
+    ['wan', 1], ['wan', 1], ['wan', 1],
+    ['wan', 3], ['wan', 3], ['wan', 3],
+    ['wan', 5], ['wan', 5], ['wan', 5],
+    ['wan', 7], ['wan', 7], ['wan', 7],
+    ['wan', 9], ['wan', 9],
+  ]);
+  const result = identifyPatterns(concealed, [], t('wan', 9), {});
+  assert.ok(result.includes('清一色'));
+  assert.ok(result.includes('碰碰胡'));
+});
+
+test('identifyPatterns detects 将将胡 (all tiles rank 2/5/8)', () => {
+  const concealed = hand([
+    ['wan', 2], ['wan', 2], ['wan', 2],
+    ['wan', 5], ['wan', 5], ['wan', 5],
+    ['wan', 8], ['wan', 8], ['wan', 8],
+    ['tong', 2], ['tong', 2], ['tong', 2],
+    ['tong', 5], ['tong', 5],
+  ]);
+  const result = identifyPatterns(concealed, [], t('tong', 5), {});
+  assert.ok(result.includes('将将胡'));
+});
+
+test('identifyPatterns adds 海底捞月 only on self-draw with haidi ctx', () => {
+  const concealed = hand([
+    ['wan', 1], ['wan', 2], ['wan', 3],
+    ['wan', 4], ['wan', 5], ['wan', 6],
+    ['tong', 1], ['tong', 2], ['tong', 3],
+    ['tiao', 7], ['tiao', 8], ['tiao', 9],
+    ['tong', 5], ['tong', 5],
+  ]);
+  assert.ok(identifyPatterns(concealed, [], t('tong', 5), { selfDraw: true, haidi: true }).includes('海底捞月'));
+  assert.ok(!identifyPatterns(concealed, [], t('tong', 5), { haidi: true }).includes('海底捞月'));
+});
+
+test('identifyPatterns includes 抢杠胡 and 杠上花 from ctx', () => {
+  const concealed = hand([
+    ['wan', 1], ['wan', 2], ['wan', 3],
+    ['wan', 4], ['wan', 5], ['wan', 6],
+    ['tong', 1], ['tong', 2], ['tong', 3],
+    ['tiao', 7], ['tiao', 8], ['tiao', 9],
+    ['tong', 5], ['tong', 5],
+  ]);
+  assert.ok(identifyPatterns(concealed, [], t('tong', 5), { robKong: true }).includes('抢杠胡'));
+  assert.ok(identifyPatterns(concealed, [], t('tong', 5), { afterKong: true, selfDraw: true }).includes('杠上花'));
 });

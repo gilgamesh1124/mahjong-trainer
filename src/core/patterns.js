@@ -1,4 +1,5 @@
 import { countTiles } from './tiles.js';
+import { isJiangTile } from './rules.js';
 
 function isFlush(tiles) {
   return tiles.length > 0 && tiles.every((tile) => tile.suit === tiles[0].suit);
@@ -14,6 +15,19 @@ function isAllTriplets(concealed, melds) {
     else if (r !== 0) return false;
   }
   return pairLike === 1;
+}
+
+// 返回全部命中的大胡名（可空）。ctx = { selfDraw?, afterKong?, robKong?, haidi? }
+export function identifyPatterns(concealed, melds, winningTile, ctx = {}) {
+  const allTiles = [...concealed, ...melds.flatMap((meld) => meld.tiles)];
+  const patterns = [];
+  if (ctx.robKong) patterns.push('抢杠胡');
+  if (ctx.afterKong && ctx.selfDraw) patterns.push('杠上花');
+  if (ctx.haidi && ctx.selfDraw) patterns.push('海底捞月');
+  if (isFlush(allTiles)) patterns.push('清一色');
+  if (allTiles.length > 0 && allTiles.every((tile) => isJiangTile(tile))) patterns.push('将将胡');
+  if (isAllTriplets(concealed, melds)) patterns.push('碰碰胡');
+  return patterns;
 }
 
 export function identifyPattern(concealed, melds, winningTile, ctx = {}) {
