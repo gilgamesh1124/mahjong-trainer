@@ -5,6 +5,7 @@ import { recommendOperation } from './core/operation-advice.js';
 import { decideAction, decideClaim } from './core/ai.js';
 import { canSelfDrawWin, canConcealedKongs, canAddedKongs } from './core/melds.js';
 import { recordDecision, summarizeReview, recordOperationDecision, summarizeOperationReview } from './core/review.js';
+import { createMatch, settleHand } from './core/match.js';
 import { renderApp } from './ui/render.js';
 
 const app = document.querySelector('#app');
@@ -16,6 +17,9 @@ let controller = null;
 let pending = null;           // { kind:'action'|'claim', resolve, ... }
 let currentRecommendation = null;
 let adviceCollapsed = false;  // 盘中提醒面板是否收缩
+let match = createMatch();
+let lastSettlement = null;
+let handSettled = false;
 
 const DELAY_MS = 1000;
 const delay = () => new Promise((r) => setTimeout(r, DELAY_MS));
@@ -51,11 +55,19 @@ function render() {
     operationReviewSummary: summarizeOperationReview(operationReviewRecords),
     interaction,
     adviceCollapsed,
+    match,
+    settlement: lastSettlement,
   });
 }
 
 function onUpdate(next) {
   game = next;
+  if (game.phase === 'hand-over' && !handSettled) {
+    handSettled = true;
+    const outcome = settleHand(match, game);
+    match = outcome.match;
+    lastSettlement = outcome.settlement;
+  }
   if (game.phase === 'awaiting-discard' && game.currentPlayer === 0) {
     currentRecommendation = recommendCurrentHand();
   }
@@ -102,10 +114,13 @@ function resolvePending(value) {
   p.resolve(value);
 }
 
-function startNewHand() {
+function startHand({ resetMatch = false } = {}) {
   if (controller) controller.abort();
   controller = new AbortController();
-  game = createInitialGame();
+  if (resetMatch) match = createMatch();
+  handSettled = false;
+  lastSettlement = null;
+  game = createInitialGame({ dealerSeat: match.dealerSeat });
   reviewRecords = [];
   operationReviewRecords = [];
   pending = null;
@@ -120,7 +135,8 @@ app.addEventListener('click', (event) => {
     render();
     return;
   }
-  if (event.target.closest('.new-hand-button')) { startNewHand(); return; }
+  if (event.target.closest('.next-hand-button')) { startHand(); return; }
+  if (event.target.closest('.reset-match-button')) { startHand({ resetMatch: true }); return; }
 
   // 玩家出牌（仅当引擎在等玩家动作时）
   const tileButton = event.target.closest('.player-hand:not(.is-disabled) .tile[data-discard-index]');
@@ -161,4 +177,4 @@ app.addEventListener('click', (event) => {
   }
 });
 
-startNewHand();
+startHand();

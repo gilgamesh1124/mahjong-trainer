@@ -154,7 +154,19 @@ function findDrawnIndex(game) {
   return game.players[0].hand.findIndex((tile) => tileKey(tile) === tileKey(draw.tile));
 }
 
-export function renderApp({ game, recommendation, reviewSummary, operationReviewSummary, interaction = {}, adviceCollapsed = false }) {
+// 第 N 局：终局时显示刚结束的一局（settle 已使 handIndex 指向下一局）
+function scoreboard(match, phase) {
+  if (!match) return '';
+  const handNo = phase === 'hand-over' ? match.handIndex : match.handIndex + 1;
+  const cells = PLAYER_NAMES.map((name, seat) => `
+    <span class="score-cell${seat === match.dealerSeat ? ' is-dealer' : ''}">
+      <b>${escapeHtml(name)}</b>${seat === match.dealerSeat ? '<i class="dealer-badge">庄</i>' : ''}
+      <em>${escapeHtml(match.scores[seat])}</em>
+    </span>`).join('');
+  return `<div class="scoreboard"><span class="hand-no">第 ${escapeHtml(handNo)} 局</span>${cells}</div>`;
+}
+
+export function renderApp({ game, recommendation, reviewSummary, operationReviewSummary, interaction = {}, adviceCollapsed = false, match, settlement }) {
   const best = recommendation?.best ?? null;
   const bestDiscardFace = best ? tileFaceSvg(best.discard) : '<span class="best-empty">暂无</span>';
   const explanation = best?.explanation ?? '等待可分析的手牌。';
@@ -182,6 +194,7 @@ export function renderApp({ game, recommendation, reviewSummary, operationReview
       ${opponentSeat(game.players[3], 3, activeSeat)}
 
       <div class="center-area">
+        ${scoreboard(match, game.phase)}
         <div class="wall-status">牌墙剩余 <strong>${escapeHtml(game.wall.length)}</strong></div>
         <div class="discard-grid" aria-label="四家弃牌">
           ${discardGrid(game)}
@@ -218,11 +231,12 @@ export function renderApp({ game, recommendation, reviewSummary, operationReview
         <div class="review-summary">${reviewBlock(reviewSummary)}</div>
         <h2>吃碰杠胡复盘</h2>
         <div class="review-summary">${operationReviewBlock(operationReviewSummary)}</div>
-        <button class="new-hand-button" type="button">新开一局</button>
+        <button class="next-hand-button" type="button">下一局</button>
+        <button class="reset-match-button" type="button">重新开桌</button>
       </div>
     </aside>
 
-    ${resultBanner(game, PLAYER_NAMES)}
+    ${resultBanner(game, PLAYER_NAMES, settlement)}
   `;
 }
 

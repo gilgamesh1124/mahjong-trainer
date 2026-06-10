@@ -504,23 +504,6 @@ button {
   font-size: 13px;
 }
 
-.new-hand-button {
-  min-height: 42px;
-  margin-top: auto;
-  border: 1px solid #73d38f;
-  border-radius: 8px;
-  background: #3eb969;
-  color: #082017;
-  cursor: pointer;
-  font-weight: 800;
-}
-
-.new-hand-button:hover,
-.new-hand-button:focus-visible {
-  background: #56d17f;
-  outline: 2px solid rgba(115, 211, 143, 0.35);
-}
-
 /* 回合高亮 */
 .seat.is-active,
 .player-zone.is-active {
@@ -731,6 +714,59 @@ button {
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* 积分条 */
+.scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: #dff5e6;
+  font-size: 13px;
+}
+.hand-no { color: #ffe27a; font-weight: 700; }
+.score-cell { display: inline-flex; align-items: center; gap: 4px; }
+.score-cell em { color: #fff2aa; font-style: normal; font-weight: 800; }
+.score-cell.is-dealer b { color: #ffe27a; }
+.dealer-badge {
+  display: inline-grid; place-items: center;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #ffcf3f; color: #1b2422;
+  font-size: 10px; font-weight: 900; font-style: normal;
+}
+
+/* 结算 */
+.settlement { display: grid; gap: 6px; justify-items: center; }
+.fan-line { margin: 0; color: #ffe27a; font-weight: 800; }
+.delta-line { display: flex; gap: 12px; flex-wrap: wrap; }
+.delta.is-plus { color: #6bd18b; font-weight: 700; }
+.delta.is-minus { color: #ff8d7a; font-weight: 700; }
+
+.banner-buttons { display: flex; gap: 10px; }
+.reset-match-button {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid #888;
+  border-radius: 8px;
+  background: #2a322f;
+  color: #dce8e1;
+  cursor: pointer;
+  font-weight: 700;
+}
+.reset-match-button:hover { border-color: #ffe27a; color: #ffe27a; }
+.next-hand-button {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid #73d38f;
+  border-radius: 8px;
+  background: #3eb969;
+  color: #082017;
+  cursor: pointer;
+  font-weight: 800;
+}
+.next-hand-button:hover { background: #56d17f; }
 
 @media (max-width: 1040px) {
   .app-shell {

@@ -135,19 +135,44 @@ function revealHand(winner, result) {
   `;
 }
 
+function settlementBlock(settlement, names, result) {
+  if (!settlement) return '';
+  const fanText = result.patterns?.length
+    ? `${result.patterns.join(' × ')} → ${settlement.total} 分`
+    : `平胡 · ${settlement.total} 分`;
+  const deltas = settlement.payments
+    .filter((p) => p.delta !== 0)
+    .map((p) => `<span class="delta ${p.delta > 0 ? 'is-plus' : 'is-minus'}">${escapeHtml(names[p.seat])} ${p.delta > 0 ? '+' : ''}${escapeHtml(p.delta)}</span>`)
+    .join('');
+  return `
+    <div class="settlement">
+      <p class="fan-line">${escapeHtml(fanText)}</p>
+      <div class="delta-line">${deltas}</div>
+    </div>
+  `;
+}
+
+const BANNER_BUTTONS = `
+  <div class="banner-buttons">
+    <button class="next-hand-button" type="button">下一局</button>
+    <button class="reset-match-button" type="button">重新开桌</button>
+  </div>
+`;
+
 // 结局横幅
-export function resultBanner(game, names) {
+export function resultBanner(game, names, settlement) {
   const result = game?.result;
   if (!result) return '';
   if (result.type === 'draw') {
-    return `<div class="result-banner"><div class="result-card"><h2>流局</h2><button class="new-hand-button" type="button">新开一局</button></div></div>`;
+    return `<div class="result-banner"><div class="result-card"><h2>流局</h2><p class="result-way">连庄，积分不变</p>${BANNER_BUTTONS}</div></div>`;
   }
   const who = names[result.winner];
   const way = result.winType === 'self-draw' ? '自摸' : result.winType === 'rob-kong' ? '抢杠胡' : `点炮（${names[result.loser]} 放炮）`;
   return `<div class="result-banner"><div class="result-card">
     <h2>${escapeHtml(who)} 胡牌</h2>
     <p class="result-way">${escapeHtml(way)} · ${escapeHtml(result.pattern)}</p>
+    ${settlementBlock(settlement, names, result)}
     ${revealHand(game.players[result.winner], result)}
-    <button class="new-hand-button" type="button">新开一局</button>
+    ${BANNER_BUTTONS}
   </div></div>`;
 }

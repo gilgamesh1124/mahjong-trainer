@@ -48,3 +48,21 @@ test('resultBanner removes the winning tile from concealed on self-draw (no doub
   // 自摸：暗手移除 1 张胡牌后剩 2 张 + 单独高亮胡牌 1 张 = 3 个 reveal-tile（与手牌总数一致，无重复）
   assert.equal(countOccurrences(html, 'reveal-tile'), 3);
 });
+
+test('resultBanner renders settlement fan line and deltas when provided', () => {
+  const winner = { hand: [t('wan', 1), t('wan', 2), t('wan', 3)], melds: [] };
+  const game = {
+    result: { type: 'win', winner: 2, loser: 0, tile: t('wan', 9), winType: 'discard', pattern: '清一色', patterns: ['清一色'] },
+    players: [{}, {}, winner, {}],
+  };
+  const settlement = {
+    category: '大胡', base: 6, multiplier: 1, total: 6,
+    payments: [{ seat: 0, delta: -6 }, { seat: 1, delta: 0 }, { seat: 2, delta: 6 }, { seat: 3, delta: 0 }],
+  };
+  const html = resultBanner(game, names, settlement);
+  assert.ok(html.includes('清一色'));
+  assert.ok(html.includes('6 分'));
+  assert.ok(html.includes('is-plus'));
+  assert.ok(html.includes('is-minus'));
+  assert.ok(html.includes('next-hand-button'));
+});
