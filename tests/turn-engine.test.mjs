@@ -217,3 +217,66 @@ test('turn-engine: no-jiang-flag allows win on non-jiang pair (initialNoJiang:tr
   assert.equal(result.result?.type, 'win');
   assert.equal(result.result?.winner, 2);
 });
+
+test('haidi self-draw win reports 海底捞月 in result.patterns and pattern name', async () => {
+  const game = makeGame({
+    currentPlayer: 0,
+    wall: [],
+    lastDraw: { seat: 0, tile: t('tiao', 1), afterKong: false },
+  });
+  game.players[0].hand = handOf([
+    ['wan', 1], ['wan', 2], ['wan', 3], ['wan', 4], ['wan', 5], ['wan', 6],
+    ['wan', 7], ['wan', 8], ['wan', 9], ['tong', 1], ['tong', 2], ['tong', 3],
+    ['tiao', 1], ['tiao', 1],
+  ]);
+  const agents = [scripted({ actions: [{ type: 'self-win' }] }), passAgent, passAgent, passAgent];
+
+  const result = await runHand(game, agents, { delay: noDelay });
+
+  assert.ok(Array.isArray(result.result.patterns));
+  assert.ok(result.result.patterns.includes('海底捞月'));
+  assert.ok(result.result.pattern.includes('海底捞月'));
+});
+
+test('non-haidi self-draw does not report 海底捞月 (patterns empty, pattern 自摸)', async () => {
+  const game = makeGame({
+    currentPlayer: 0,
+    wall: [t('tong', 9)],
+    lastDraw: { seat: 0, tile: t('tiao', 1), afterKong: false },
+  });
+  game.players[0].hand = handOf([
+    ['wan', 1], ['wan', 2], ['wan', 3], ['wan', 4], ['wan', 5], ['wan', 6],
+    ['wan', 7], ['wan', 8], ['wan', 9], ['tong', 1], ['tong', 2], ['tong', 3],
+    ['tiao', 1], ['tiao', 1],
+  ]);
+  const agents = [scripted({ actions: [{ type: 'self-win' }] }), passAgent, passAgent, passAgent];
+
+  const result = await runHand(game, agents, { delay: noDelay });
+
+  assert.deepEqual(result.result.patterns, []);
+  assert.equal(result.result.pattern, '自摸');
+});
+
+test('discard win carries patterns array (empty for a plain hand)', async () => {
+  const claimed = t('tiao', 1);
+  const game = makeGame({ currentPlayer: 0, wall: [t('tong', 1)] });
+  game.players[0].hand = [claimed, ...handOf([
+    ['tong', 4], ['tong', 5], ['tong', 6], ['tong', 7], ['tong', 8], ['tong', 9],
+    ['wan', 2], ['wan', 3], ['wan', 4], ['tiao', 5], ['tiao', 6], ['tiao', 7], ['tong', 2],
+  ])];
+  game.players[2].hand = handOf([
+    ['wan', 1], ['wan', 2], ['wan', 3], ['wan', 4], ['wan', 5], ['wan', 6],
+    ['wan', 7], ['wan', 8], ['wan', 9], ['tong', 1], ['tong', 2], ['tong', 3], ['tiao', 1],
+  ]);
+  const seat0 = scripted({ actions: [{ type: 'discard', tile: claimed }] });
+  const seat2 = {
+    chooseAction: async () => ({ type: 'discard', tile: t('wan', 1) }),
+    chooseClaim: async (g, s, options) => options.find((o) => o.type === 'win') ?? { type: 'pass' },
+  };
+  const agents = [seat0, passAgent, seat2, passAgent];
+
+  const result = await runHand(game, agents, { delay: noDelay });
+
+  assert.equal(result.result.winner, 2);
+  assert.deepEqual(result.result.patterns, []);
+});

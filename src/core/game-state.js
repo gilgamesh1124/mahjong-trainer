@@ -178,6 +178,7 @@ export function applyWin(game, seat, info) {
       winType: info.winType,
       afterKong: !!info.afterKong,
       pattern: info.pattern,
+      patterns: info.patterns ?? [],
     },
     history: [...game.history, { type: 'win', playerIndex: seat, winType: info.winType }],
   };

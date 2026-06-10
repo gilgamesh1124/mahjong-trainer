@@ -2,7 +2,7 @@ import { sortTiles } from './tiles.js';
 import { applyDiscard, applyPong, applyChi, applyKong, applyWin, markDraw, drawTile, shouldRequireJiangPair } from './game-state.js';
 import { claimOptionsFor, resolveClaims } from './claims.js';
 import { canWinOnTile } from './melds.js';
-import { identifyPattern } from './patterns.js';
+import { identifyPattern, identifyPatterns } from './patterns.js';
 
 const NEXT = (seat) => (seat + 3) % 4;
 
@@ -35,8 +35,11 @@ export async function runHand(game, agents, { delay = () => Promise.resolve(), o
 
     if (action.type === 'self-win') {
       const tile = game.lastDraw?.tile ?? action.tile;
-      const pattern = identifyPattern(winningConcealed(game.players[seat]), game.players[seat].melds, tile, { selfDraw: true, afterKong: !!game.lastDraw?.afterKong });
-      game = applyWin(game, seat, { winType: 'self-draw', tile, loser: null, afterKong: !!game.lastDraw?.afterKong, pattern });
+      const concealed = winningConcealed(game.players[seat]);
+      const ctx = { selfDraw: true, afterKong: !!game.lastDraw?.afterKong, haidi: game.wall.length === 0 };
+      const patterns = identifyPatterns(concealed, game.players[seat].melds, tile, ctx);
+      const pattern = patterns.length > 0 ? patterns.join('、') : identifyPattern(concealed, game.players[seat].melds, tile, ctx);
+      game = applyWin(game, seat, { winType: 'self-draw', tile, loser: null, afterKong: !!game.lastDraw?.afterKong, pattern, patterns });
       onUpdate(game);
       continue;
     }
@@ -45,8 +48,11 @@ export async function runHand(game, agents, { delay = () => Promise.resolve(), o
       if (action.type === 'added-kong') {
         const robber = findRobKong(game, seat, action.tile);
         if (robber !== null) {
-          const pattern = identifyPattern(winningConcealed(game.players[robber], action.tile), game.players[robber].melds, action.tile, { robKong: true });
-          game = applyWin(game, robber, { winType: 'rob-kong', tile: action.tile, loser: seat, afterKong: false, pattern });
+          const concealed = winningConcealed(game.players[robber], action.tile);
+          const ctx = { robKong: true };
+          const patterns = identifyPatterns(concealed, game.players[robber].melds, action.tile, ctx);
+          const pattern = patterns.length > 0 ? patterns.join('、') : identifyPattern(concealed, game.players[robber].melds, action.tile, ctx);
+          game = applyWin(game, robber, { winType: 'rob-kong', tile: action.tile, loser: seat, afterKong: false, pattern, patterns });
           onUpdate(game);
           continue;
         }
@@ -95,8 +101,11 @@ export async function runHand(game, agents, { delay = () => Promise.resolve(), o
 
     const claimedTile = game.lastDiscard.tile;
     if (winner.claim.type === 'win') {
-      const pattern = identifyPattern(winningConcealed(game.players[winner.seat], claimedTile), game.players[winner.seat].melds, claimedTile, {});
-      game = applyWin(game, winner.seat, { winType: 'discard', tile: claimedTile, loser: seat, afterKong: false, pattern });
+      const concealed = winningConcealed(game.players[winner.seat], claimedTile);
+      const ctx = {};
+      const patterns = identifyPatterns(concealed, game.players[winner.seat].melds, claimedTile, ctx);
+      const pattern = patterns.length > 0 ? patterns.join('、') : identifyPattern(concealed, game.players[winner.seat].melds, claimedTile, ctx);
+      game = applyWin(game, winner.seat, { winType: 'discard', tile: claimedTile, loser: seat, afterKong: false, pattern, patterns });
     } else if (winner.claim.type === 'pong') {
       game = applyPong(game, winner.seat, claimedTile, seat);
     } else if (winner.claim.type === 'kong') {
