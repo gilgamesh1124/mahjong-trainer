@@ -18,6 +18,7 @@ function isAllTriplets(concealed, melds) {
 }
 
 // 返回全部命中的大胡名（可空）。ctx = { selfDraw?, afterKong?, robKong?, haidi? }
+// 契约：concealed 须已包含胡牌张（winningTile 仅作签名对齐保留，不参与判定）。
 export function identifyPatterns(concealed, melds, winningTile, ctx = {}) {
   const allTiles = [...concealed, ...melds.flatMap((meld) => meld.tiles)];
   const patterns = [];

@@ -4,6 +4,11 @@ const SEATS = [0, 1, 2, 3];
 
 // 经典长沙：小胡 1 分；大胡 6 × 2^(n-1)。点炮/抢杠放炮者单付；自摸三家各付。
 export function scoreWin({ bigPatterns = [], winType, winner, loser = null }) {
+  if (winType !== 'self-draw' && loser == null) {
+    // 点炮/抢杠必须有付分方，否则 payments 无法保持零和
+    throw new Error(`scoreWin: winType ${winType} requires a loser seat`);
+  }
+
   const isBig = bigPatterns.length > 0;
   const multiplier = isBig ? 2 ** (bigPatterns.length - 1) : 1;
   const base = isBig ? BIG_BASE : SMALL_BASE;

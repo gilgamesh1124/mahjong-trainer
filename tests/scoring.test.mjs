@@ -35,3 +35,10 @@ test('rob-kong pays like discard: the robbed seat single-pays', () => {
   assert.equal(s.payments.find((p) => p.seat === 3).delta, 6);
   assert.equal(sum(s.payments), 0);
 });
+
+test('scoreWin throws when discard/rob-kong has no loser (zero-sum guard)', () => {
+  assert.throws(
+    () => scoreWin({ bigPatterns: [], winType: 'discard', winner: 0, loser: null }),
+    /requires a loser/,
+  );
+});

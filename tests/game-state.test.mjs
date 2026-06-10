@@ -268,3 +268,8 @@ test('createInitialGame deals 14 tiles to a non-zero dealer who acts first', () 
   assert.equal(game.wall.length, 55);
   assert.equal(typeof game.players[2].flags.initialNoJiang, 'boolean');
 });
+
+test('createInitialGame throws on out-of-range dealerSeat', () => {
+  assert.throws(() => createInitialGame({ seed: 1, dealerSeat: 5 }), /dealerSeat out of range/);
+  assert.throws(() => createInitialGame({ seed: 1, dealerSeat: -1 }), /dealerSeat out of range/);
+});

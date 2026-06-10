@@ -28,6 +28,10 @@ export function shouldRequireJiangPair(player) {
 }
 
 export function createInitialGame({ seed = Date.now(), dealerSeat = 0 } = {}) {
+  if (!Number.isInteger(dealerSeat) || dealerSeat < 0 || dealerSeat > 3) {
+    throw new RangeError(`dealerSeat out of range: ${dealerSeat}`);
+  }
+
   const originalWall = shuffle(createTileSet(), createSeededRandom(seed));
   const handSizes = [13, 13, 13, 13];
   handSizes[dealerSeat] = 14;
