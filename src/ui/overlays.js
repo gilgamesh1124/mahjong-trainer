@@ -168,9 +168,11 @@ export function resultBanner(game, names, settlement) {
   }
   const who = names[result.winner];
   const way = result.winType === 'self-draw' ? '自摸' : result.winType === 'rob-kong' ? '抢杠胡' : `点炮（${names[result.loser]} 放炮）`;
+  // pattern 与 way 相同（如平胡自摸）时不重复显示「自摸 · 自摸」
+  const wayLine = result.pattern && result.pattern !== way ? `${way} · ${result.pattern}` : way;
   return `<div class="result-banner"><div class="result-card">
     <h2>${escapeHtml(who)} 胡牌</h2>
-    <p class="result-way">${escapeHtml(way)} · ${escapeHtml(result.pattern)}</p>
+    <p class="result-way">${escapeHtml(wayLine)}</p>
     ${settlementBlock(settlement, names, result)}
     ${revealHand(game.players[result.winner], result)}
     ${BANNER_BUTTONS}
