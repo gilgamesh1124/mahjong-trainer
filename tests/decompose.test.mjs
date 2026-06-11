@@ -101,3 +101,17 @@ test('invariant: decomposition shanten matches shantenWithMelds on assorted hand
     }
   }
 });
+
+test('requireJiangPair picks a jiang pair when one exists', () => {
+  // 22万(将) + 123万... 不行会与22万纠缠——改用 55筒 作将，结构清晰
+  const concealed = hand([
+    ['wan', 1], ['wan', 2], ['wan', 3],
+    ['tiao', 4], ['tiao', 5], ['tiao', 6],
+    ['tong', 7], ['tong', 8], ['tong', 9],
+    ['tong', 5], ['tong', 5],
+    ['wan', 7], ['wan', 8],
+  ]);
+  const d = decomposeHand(concealed, 0, { requireJiangPair: true });
+  assert.deepEqual(d.pair, [t('tong', 5), t('tong', 5)]);
+  assert.equal(d.shanten, 0);
+});
