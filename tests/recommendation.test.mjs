@@ -229,3 +229,19 @@ test('explanation narrates the process at shanten 1', () => {
   assert.ok(oneChoice.explanation.includes('副面子') || oneChoice.explanation.includes('即听牌'),
     `process narrative expected, got: ${oneChoice.explanation}`);
 });
+
+test('outlook budget: choices beyond the top-3 never carry outlook', () => {
+  // 全 1 向的散听手：所有候选都是 1 向，但只有排序前三可以有 outlook
+  const oneShantenWide = [
+    { suit: 'wan', rank: 1 }, { suit: 'wan', rank: 2 }, { suit: 'wan', rank: 3 },
+    { suit: 'tong', rank: 4 }, { suit: 'tong', rank: 5 }, { suit: 'tong', rank: 6 },
+    { suit: 'tiao', rank: 7 }, { suit: 'tiao', rank: 8 }, { suit: 'tiao', rank: 9 },
+    { suit: 'tong', rank: 9 }, { suit: 'tong', rank: 9 },
+    { suit: 'wan', rank: 4 }, { suit: 'wan', rank: 7 },
+    { suit: 'wan', rank: 9 },
+  ];
+  const result = recommendDiscards({ hand: oneShantenWide });
+  for (const choice of result.choices.slice(3)) {
+    assert.equal(choice.outlook, undefined, `choice beyond top-3 must not have outlook`);
+  }
+});

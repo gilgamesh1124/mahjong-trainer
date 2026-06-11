@@ -139,7 +139,7 @@ function buildExplanation(discard, shanten, ukeire, value, danger, decomposition
     const pairText = decomposition.pair ? `、${tileLabel(decomposition.pair[0])}对作将` : '';
     const draws = ukeire.tiles.slice(0, 4).map((u) => tileLabel(u.tile)).join('/');
     const more = ukeire.tiles.length > 4 ? '等' : '';
-    return `打${label}后差 1 向：已成 ${sets} 副面子${pairText}，进 ${draws}${more} 即听牌${tagText}。`;
+    return `打${label}后差 1 向：已成 ${sets} 副面子${pairText}，进 ${draws}${more}即听牌${tagText}。`;
   }
   return `打${label}后还差 ${shanten} 向，共 ${ukeire.totalCount} 张进张（${ukeire.tiles.length} 种）${tagText}。`;
 }
