@@ -186,8 +186,11 @@ function drawsRow(usefulTiles) {
 // 展望行：进 X → 听 Y/Z · N 张（仅 1 向）
 function outlookRows(outlook) {
   if (!outlook || outlook.length === 0) return '';
-  const shown = outlook.slice(0, PROC_LIMIT);
-  const rest = outlook.length - shown.length;
+  // 防御：无听张的展望条目不渲染（正常不会出现，仅当上游不变量破坏时兜底）
+  const usable = outlook.filter((o) => o.waits.length > 0);
+  if (usable.length === 0) return '';
+  const shown = usable.slice(0, PROC_LIMIT);
+  const rest = usable.length - shown.length;
   const items = shown.map((o) => {
     const waits = o.waits.slice(0, 4).map((w) => procTile(w.tile, w.remaining)).join('');
     const moreWaits = o.waits.length > 4 ? '<span class="proc-more">…</span>' : '';
