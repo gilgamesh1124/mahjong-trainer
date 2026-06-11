@@ -17,6 +17,7 @@ let controller = null;
 let pending = null;           // { kind:'action'|'claim', resolve, ... }
 let currentRecommendation = null;
 let adviceCollapsed = false;  // 盘中提醒面板是否收缩
+let expandedChoiceIndex = null;  // 备选前三中当前展开过程的项
 let match = createMatch();
 let lastSettlement = null;
 let handSettled = false;
@@ -55,6 +56,7 @@ function render() {
     operationReviewSummary: summarizeOperationReview(operationReviewRecords),
     interaction,
     adviceCollapsed,
+    expandedChoiceIndex,
     match,
     settlement: lastSettlement,
   });
@@ -70,6 +72,7 @@ function onUpdate(next) {
   }
   if (game.phase === 'awaiting-discard' && game.currentPlayer === 0) {
     currentRecommendation = recommendCurrentHand();
+    expandedChoiceIndex = null;
   }
   render();
 }
@@ -125,6 +128,7 @@ function startHand({ resetMatch = false } = {}) {
   operationReviewRecords = [];
   pending = null;
   currentRecommendation = recommendCurrentHand();
+  expandedChoiceIndex = null;
   render();
   runHand(game, agents, { delay, onUpdate, signal: controller.signal }).catch(() => {});
 }
@@ -132,6 +136,14 @@ function startHand({ resetMatch = false } = {}) {
 app.addEventListener('click', (event) => {
   if (event.target.closest('.advice-collapse-toggle')) {
     adviceCollapsed = !adviceCollapsed;
+    render();
+    return;
+  }
+
+  const expandEl = event.target.closest('[data-choice-expand]');
+  if (expandEl) {
+    const index = Number(expandEl.dataset.choiceExpand);
+    expandedChoiceIndex = expandedChoiceIndex === index ? null : index;
     render();
     return;
   }

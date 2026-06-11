@@ -85,20 +85,24 @@ function choiceMeta(choice) {
   return `${progress} · ${choice.ukeireCount} 张`;
 }
 
-function choicesList(recommendation) {
+function choicesList(recommendation, expandedChoiceIndex) {
   const choices = recommendation?.choices?.slice(0, 3) ?? [];
+  if (choices.length === 0) return '<li>暂无备选</li>';
 
-  if (choices.length === 0) {
-    return '<li>暂无备选</li>';
-  }
-
-  return choices.map((choice, index) => `
-    <li>
-      <span class="choice-rank">${index + 1}</span>
-      <span class="choice-tile">${tileFaceSvg(choice.discard)}</span>
-      <strong class="choice-meta">${escapeHtml(choiceMeta(choice))}</strong>
+  return choices.map((choice, index) => {
+    const expanded = expandedChoiceIndex === index;
+    return `
+    <li class="choice-item${expanded ? ' is-expanded' : ''}">
+      <div class="choice-head">
+        <span class="choice-rank">${index + 1}</span>
+        <span class="choice-tile">${tileFaceSvg(choice.discard)}</span>
+        <strong class="choice-meta">${escapeHtml(choiceMeta(choice))}</strong>
+        <button class="choice-expand" type="button" data-choice-expand="${index}">${expanded ? '收起' : '过程'}</button>
+      </div>
+      ${expanded ? processBlock(choice) : ''}
     </li>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function reviewBlock(reviewSummary) {
@@ -141,6 +145,66 @@ function waitBlock(recommendation, isPlayerDiscardTurn) {
   `;
 }
 
+const PROC_LIMIT = 8;
+
+function procTile(tile, badge = null) {
+  const badgeHtml = badge != null ? `<em>${escapeHtml(badge)}</em>` : '';
+  return `<span class="proc-tile" aria-label="${escapeHtml(tileLabel(tile))}">${tileFaceSvg(tile)}${badgeHtml}</span>`;
+}
+
+// 结构行：面子 | 将 | 搭子(标等张) | 孤张
+function structureRow(decomposition) {
+  if (!decomposition) return '';
+  const groups = [];
+  for (const set of decomposition.sets) {
+    groups.push(`<span class="proc-group">${set.tiles.map((tile) => procTile(tile)).join('')}</span>`);
+  }
+  if (decomposition.pair) {
+    groups.push(`<span class="proc-group is-pair">${decomposition.pair.map((tile) => procTile(tile)).join('')}<i class="proc-tag">将</i></span>`);
+  }
+  for (const group of decomposition.taatsu) {
+    const waits = group.waits.map(tileLabel).join('/');
+    groups.push(`<span class="proc-group is-taatsu">${group.tiles.map((tile) => procTile(tile)).join('')}<i class="proc-tag">等${escapeHtml(waits)}</i></span>`);
+  }
+  if (decomposition.floaters.length > 0) {
+    groups.push(`<span class="proc-group is-floater">${decomposition.floaters.map((tile) => procTile(tile)).join('')}<i class="proc-tag">孤</i></span>`);
+  }
+  if (groups.length === 0) return '';
+  return `<div class="proc-row proc-structure">${groups.join('')}</div>`;
+}
+
+// 进张行：牌面 + 剩余张数角标
+function drawsRow(usefulTiles) {
+  if (!usefulTiles || usefulTiles.length === 0) return '';
+  const shown = usefulTiles.slice(0, PROC_LIMIT);
+  const rest = usefulTiles.length - shown.length;
+  const faces = shown.map((u) => procTile(u.tile, u.remaining)).join('');
+  const more = rest > 0 ? `<span class="proc-more">等 ${rest} 种</span>` : '';
+  return `<div class="proc-row proc-draws"><span class="proc-label">进张</span>${faces}${more}</div>`;
+}
+
+// 展望行：进 X → 听 Y/Z · N 张（仅 1 向）
+function outlookRows(outlook) {
+  if (!outlook || outlook.length === 0) return '';
+  const shown = outlook.slice(0, PROC_LIMIT);
+  const rest = outlook.length - shown.length;
+  const items = shown.map((o) => {
+    const waits = o.waits.slice(0, 4).map((w) => procTile(w.tile, w.remaining)).join('');
+    const moreWaits = o.waits.length > 4 ? '<span class="proc-more">…</span>' : '';
+    return `<div class="proc-outlook-item">进 ${procTile(o.tile)} <span class="proc-arrow">→</span> 听 ${waits}${moreWaits}<span class="proc-count">· ${escapeHtml(o.waitTotal)} 张</span></div>`;
+  }).join('');
+  const more = rest > 0 ? `<div class="proc-outlook-item proc-more">等 ${rest} 种进张…</div>` : '';
+  return `<div class="proc-row proc-outlooks"><span class="proc-label">展望</span><div class="proc-outlook-list">${items}${more}</div></div>`;
+}
+
+// 完整过程块：结构 + 进张(非听牌) + 展望(1向)。0 向听张走既有 wait-block。
+function processBlock(choice) {
+  if (!choice?.decomposition) return '';
+  const draws = choice.shanten >= 1 ? drawsRow(choice.usefulTiles) : '';
+  const outlooks = outlookRows(choice.outlook);
+  return `<div class="process-block">${structureRow(choice.decomposition)}${draws}${outlooks}</div>`;
+}
+
 function findRecommendedIndex(hand, recommendation) {
   const best = recommendation?.best ?? null;
   if (!best) return -1;
@@ -166,7 +230,7 @@ function scoreboard(match, phase) {
   return `<div class="scoreboard"><span class="hand-no">第 ${escapeHtml(handNo)} 局</span>${cells}</div>`;
 }
 
-export function renderApp({ game, recommendation, reviewSummary, operationReviewSummary, interaction = {}, adviceCollapsed = false, match, settlement }) {
+export function renderApp({ game, recommendation, reviewSummary, operationReviewSummary, interaction = {}, adviceCollapsed = false, expandedChoiceIndex = null, match, settlement }) {
   const best = recommendation?.best ?? null;
   const bestDiscardFace = best ? tileFaceSvg(best.discard) : '<span class="best-empty">暂无</span>';
   const explanation = best?.explanation ?? '等待可分析的手牌。';
@@ -225,8 +289,9 @@ export function renderApp({ game, recommendation, reviewSummary, operationReview
         </div>
         <p class="advice-explanation">${escapeHtml(isPlayerDiscardTurn ? explanation : statusText(game))}</p>
         ${waitBlock(recommendation, isPlayerDiscardTurn)}
+        ${isPlayerDiscardTurn && best ? processBlock(best) : ''}
         <h2>备选前三</h2>
-        <ol class="choice-list">${choicesList(recommendation)}</ol>
+        <ol class="choice-list">${choicesList(recommendation, expandedChoiceIndex)}</ol>
         <h2>出牌复盘</h2>
         <div class="review-summary">${reviewBlock(reviewSummary)}</div>
         <h2>吃碰杠胡复盘</h2>

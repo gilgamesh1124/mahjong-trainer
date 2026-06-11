@@ -768,6 +768,86 @@ button {
 }
 .next-hand-button:hover { background: #56d17f; }
 
+/* 过程块 */
+.process-block {
+  display: grid;
+  gap: 8px;
+  border-left: 3px solid #6bd18b;
+  border-radius: 6px;
+  background: #20292a;
+  padding: 10px 12px;
+}
+.proc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.proc-label { color: #8fe0aa; font-size: 12px; font-weight: 700; flex: none; }
+.proc-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 5px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.proc-group.is-pair { outline: 1px solid rgba(255, 226, 122, 0.55); }
+.proc-group.is-taatsu { outline: 1px dashed rgba(143, 224, 170, 0.55); }
+.proc-group.is-floater { opacity: 0.66; }
+.proc-tag {
+  margin-left: 3px;
+  color: #ffe27a;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.proc-tile {
+  position: relative;
+  width: 24px;
+  height: 32px;
+  padding: 2px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #fffdf6, #ece0c5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.proc-tile .tile-face { width: 100%; height: 100%; display: block; }
+.proc-tile em {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #3eb969;
+  color: #07210f;
+  font-size: 10px;
+  font-weight: 800;
+  font-style: normal;
+}
+.proc-more { color: #9fb8ab; font-size: 12px; }
+.proc-outlook-list { display: grid; gap: 6px; }
+.proc-outlook-item { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; color: #dce8e1; font-size: 13px; }
+.proc-arrow { color: #8fe0aa; }
+.proc-count { color: #cfe9d8; font-size: 12px; }
+
+/* 备选展开 */
+.choice-list li.choice-item { display: block; }
+.choice-head { display: flex; align-items: center; gap: 10px; }
+.choice-item .process-block { margin-top: 8px; }
+.choice-expand {
+  margin-left: auto;
+  min-height: 24px;
+  padding: 0 10px;
+  border: 1px solid #3a4744;
+  border-radius: 6px;
+  background: #222d2b;
+  color: #cfe9d8;
+  cursor: pointer;
+  font-size: 12px;
+}
+.choice-expand:hover,
+.choice-expand:focus-visible { border-color: #ffe27a; color: #ffe27a; }
+
 @media (max-width: 1040px) {
   .app-shell {
     grid-template-columns: 1fr;
