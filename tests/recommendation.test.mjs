@@ -165,3 +165,67 @@ test('recommendDiscards openMeldCount changes shanten of choices', () => {
     'openMeldCount=1 should yield same or lower shanten than openMeldCount=0'
   );
 });
+
+// --- 过程化解释：decomposition + outlook ---
+
+test('every choice carries a decomposition consistent with its shanten', () => {
+  const result = recommendDiscards({ hand: TENPAI_HAND });
+  for (const choice of result.choices) {
+    assert.ok(choice.decomposition, 'decomposition attached');
+    assert.equal(choice.decomposition.shanten, choice.shanten);
+  }
+});
+
+test('top choices at shanten 1 carry outlook with waits; tenpai best has none', () => {
+  // 3面子 + 99筒将 + 45万搭 + 孤张9万：打9万 → 听牌(0向)；拆将/拆搭的备选是 1 向
+  const oneShanten = [
+    { suit: 'wan', rank: 1 }, { suit: 'wan', rank: 2 }, { suit: 'wan', rank: 3 },
+    { suit: 'tong', rank: 4 }, { suit: 'tong', rank: 5 }, { suit: 'tong', rank: 6 },
+    { suit: 'tiao', rank: 7 }, { suit: 'tiao', rank: 8 }, { suit: 'tiao', rank: 9 },
+    { suit: 'tong', rank: 9 }, { suit: 'tong', rank: 9 },
+    { suit: 'wan', rank: 4 }, { suit: 'wan', rank: 5 },
+    { suit: 'wan', rank: 9 },
+  ];
+  const result = recommendDiscards({ hand: oneShanten });
+  assert.equal(result.best.shanten, 0);
+  assert.ok(!result.best.outlook, 'tenpai choice has no outlook');
+  const oneShantenChoice = result.choices.find((c) => c.shanten === 1);
+  if (oneShantenChoice) {
+    assert.ok(Array.isArray(oneShantenChoice.outlook), '1-shanten top choice has outlook');
+    const withWaits = oneShantenChoice.outlook.find((o) => o.waitTotal > 0);
+    assert.ok(withWaits, 'some draw leads to a real wait');
+    assert.ok(withWaits.waits.length > 0);
+    assert.ok(withWaits.waits[0].remaining > 0);
+  }
+});
+
+test('no outlook at shanten>=2', () => {
+  const scattered = [
+    { suit: 'wan', rank: 1 }, { suit: 'wan', rank: 4 }, { suit: 'wan', rank: 9 },
+    { suit: 'tong', rank: 2 }, { suit: 'tong', rank: 5 }, { suit: 'tong', rank: 9 },
+    { suit: 'tiao', rank: 1 }, { suit: 'tiao', rank: 4 }, { suit: 'tiao', rank: 9 },
+    { suit: 'wan', rank: 2 }, { suit: 'tong', rank: 7 }, { suit: 'tiao', rank: 6 },
+    { suit: 'wan', rank: 6 }, { suit: 'tiao', rank: 2 },
+  ];
+  const result = recommendDiscards({ hand: scattered });
+  for (const choice of result.choices) {
+    assert.ok(!choice.outlook, 'no outlook at shanten>=2');
+  }
+});
+
+test('explanation narrates the process at shanten 1', () => {
+  // 3面子 + 99筒将 + 4万/7万 两孤张 + 9万：打任意孤张后仍 1 向
+  const oneShanten = [
+    { suit: 'wan', rank: 1 }, { suit: 'wan', rank: 2 }, { suit: 'wan', rank: 3 },
+    { suit: 'tong', rank: 4 }, { suit: 'tong', rank: 5 }, { suit: 'tong', rank: 6 },
+    { suit: 'tiao', rank: 7 }, { suit: 'tiao', rank: 8 }, { suit: 'tiao', rank: 9 },
+    { suit: 'tong', rank: 9 }, { suit: 'tong', rank: 9 },
+    { suit: 'wan', rank: 4 }, { suit: 'wan', rank: 7 },
+    { suit: 'wan', rank: 9 },
+  ];
+  const result = recommendDiscards({ hand: oneShanten });
+  const oneChoice = result.choices.find((c) => c.shanten === 1);
+  assert.ok(oneChoice);
+  assert.ok(oneChoice.explanation.includes('副面子') || oneChoice.explanation.includes('即听牌'),
+    `process narrative expected, got: ${oneChoice.explanation}`);
+});

@@ -1,5 +1,6 @@
 import { shantenWithMelds, calcUkeire, isJiangTile } from './rules.js';
 import { removeOneTile, tileKey, tileLabel, countTiles } from './tiles.js';
+import { decomposeHand } from './decompose.js';
 
 // 中张越危险（放炮风险）：4-6 最高，幺九最低。已被看到的张会按比例降低危险。
 const RANK_DANGER = { 1: 0.25, 2: 0.45, 3: 0.7, 4: 1, 5: 1, 6: 1, 7: 0.7, 8: 0.45, 9: 0.25 };
@@ -18,10 +19,21 @@ export function recommendDiscards({
       return tileKey(a.discard).localeCompare(tileKey(b.discard));
     });
 
+  const topChoices = choices.slice(0, Math.max(3, Math.min(choices.length, uniqueDiscards.length)));
+
+  for (const choice of topChoices.slice(0, 3)) {
+    if (choice.shanten === 1) {
+      choice.outlook = buildOutlook(
+        removeOneTile(hand, choice.discard), choice.usefulTiles,
+        visibleCounts, openMeldCount, requireJiangPair,
+      );
+    }
+  }
+
   return {
     id: `recommend-${choices.map((c) => tileKey(c.discard)).join('-')}`,
-    best: choices[0] ?? null,
-    choices: choices.slice(0, Math.max(3, Math.min(choices.length, uniqueDiscards.length))),
+    best: topChoices[0] ?? null,
+    choices: topChoices,
   };
 }
 
@@ -29,6 +41,7 @@ function buildChoice(hand, discard, visibleCounts, openMeldCount, requireJiangPa
   const afterDiscard = removeOneTile(hand, discard);
   const shanten = shantenWithMelds(afterDiscard, openMeldCount, { requireJiangPair });
   const ukeire = calcUkeire(afterDiscard, visibleCounts, openMeldCount, { requireJiangPair });
+  const decomposition = decomposeHand(afterDiscard, openMeldCount, { requireJiangPair });
   const value = patternValue(afterDiscard, melds, requireJiangPair);
   const danger = discardDanger(discard, visibleCounts);
 
@@ -41,10 +54,11 @@ function buildChoice(hand, discard, visibleCounts, openMeldCount, requireJiangPa
     shanten,
     ukeireCount: ukeire.totalCount,
     usefulTiles: ukeire.tiles,
+    decomposition,
     patternValue: value,
     danger,
     score,
-    explanation: buildExplanation(discard, shanten, ukeire, value, danger),
+    explanation: buildExplanation(discard, shanten, ukeire, value, danger, decomposition),
   };
 }
 
@@ -89,7 +103,24 @@ function parseTile(key) {
   return { suit: key.slice(0, dash), rank: Number(key.slice(dash + 1)) };
 }
 
-function buildExplanation(discard, shanten, ukeire, value, danger) {
+// 1 向展望：对每个进张，进张后枚举弃张取「听牌且听张数最大」者，列出听张明细
+function buildOutlook(hand13, usefulTiles, visibleCounts, openMeldCount, requireJiangPair) {
+  return usefulTiles.map(({ tile, remaining }) => {
+    const hand14 = [...hand13, tile];
+    let best = null;
+    for (const discard of uniqueTiles(hand14)) {
+      const after = removeOneTile(hand14, discard);
+      if (shantenWithMelds(after, openMeldCount, { requireJiangPair }) !== 0) continue;
+      const ukeire = calcUkeire(after, visibleCounts, openMeldCount, { requireJiangPair });
+      if (!best || ukeire.totalCount > best.waitTotal) {
+        best = { waits: ukeire.tiles, waitTotal: ukeire.totalCount };
+      }
+    }
+    return { tile, remaining, waits: best?.waits ?? [], waitTotal: best?.waitTotal ?? 0 };
+  });
+}
+
+function buildExplanation(discard, shanten, ukeire, value, danger, decomposition) {
   const label = tileLabel(discard);
   const tags = [];
   if (value >= 18) tags.push('牌型价值高');
@@ -99,7 +130,16 @@ function buildExplanation(discard, shanten, ukeire, value, danger) {
 
   if (shanten < 0) return `打${label}后已和牌。`;
   if (shanten === 0) {
-    return `打${label}后听牌，共 ${ukeire.totalCount} 张进张（${ukeire.tiles.length} 种）${tagText}。`;
+    const waits = ukeire.tiles.slice(0, 4).map((u) => tileLabel(u.tile)).join('/');
+    const more = ukeire.tiles.length > 4 ? '等' : '';
+    return `打${label}后听牌：听 ${waits}${more}，共 ${ukeire.totalCount} 张${tagText}。`;
+  }
+  if (shanten === 1) {
+    const sets = decomposition.sets.length;
+    const pairText = decomposition.pair ? `、${tileLabel(decomposition.pair[0])}对作将` : '';
+    const draws = ukeire.tiles.slice(0, 4).map((u) => tileLabel(u.tile)).join('/');
+    const more = ukeire.tiles.length > 4 ? '等' : '';
+    return `打${label}后差 1 向：已成 ${sets} 副面子${pairText}，进 ${draws}${more} 即听牌${tagText}。`;
   }
   return `打${label}后还差 ${shanten} 向，共 ${ukeire.totalCount} 张进张（${ukeire.tiles.length} 种）${tagText}。`;
 }
